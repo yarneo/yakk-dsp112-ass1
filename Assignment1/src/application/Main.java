@@ -201,32 +201,38 @@ public class Main {
 			CreateQueueRequest createQueueRequest = new CreateQueueRequest(QueueIn);
 			String myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
 			ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(myQueueUrl);
-			List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
 			for(;;) {
+				List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
 				if(messages.size() == 0) {//queue is empty
 					System.out.println("Queue is empty");
 					Thread.sleep(1000);
 				}
 				else {
 					for (Message message : messages) {
-						if(message.getMessageId() == Key)
+						if(message.getBody().contains(Key))
 							msg = message.getBody();
 						break;
 					}
+					if(msg != null)
 					break;
+					else {
+						System.out.println("Queue doesnt have message you want");
+						Thread.sleep(1000);
+					}
 				}
 			}
+			//System.out.println(msg);
 			parsedMsg = msg.split(",");
 			if(parsedMsg.length == 2) {
 				LparsedMsg = parsedMsg[0].split("=");
 				RparsedMsg = parsedMsg[1].split("=");
-				if(LparsedMsg[0] == "Bucket") 
-					bucketInfo[0] = parsedMsg[1];
+				if(LparsedMsg[0].equals("Bucket")) 
+					bucketInfo[0] = LparsedMsg[1];
 				else {
 					throw badmsg;
 				}
-				if(RparsedMsg[1] == "Key") 
-					bucketInfo[1] = parsedMsg[1];
+				if(RparsedMsg[0].equals("Key")) 
+					bucketInfo[1] = RparsedMsg[1];
 				else {
 					throw badmsg;
 				}
