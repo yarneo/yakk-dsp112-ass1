@@ -35,6 +35,7 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
+import com.amazonaws.services.sqs.model.DeleteMessageRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
@@ -190,7 +191,8 @@ public class Main {
 		return null;
 	}
 
-	public static String[] recieveFromSQS() throws IOException, Exception {
+	
+	public static String[] receiveFromSQS() throws IOException, Exception {
 		String msg = null;
 		String[] parsedMsg;
 		String[] LparsedMsg;
@@ -209,12 +211,15 @@ public class Main {
 				}
 				else {
 					for (Message message : messages) {
-						if(message.getBody().contains(Key))
+						if(message.getBody().contains(Key)) {
 							msg = message.getBody();
-						break;
+							String messageRecieptHandle = message.getReceiptHandle();
+				            sqs.deleteMessage(new DeleteMessageRequest(myQueueUrl, messageRecieptHandle));
+							break;
+						}
 					}
 					if(msg != null)
-					break;
+						break;
 					else {
 						System.out.println("Queue doesnt have message you want");
 						Thread.sleep(1000);
@@ -274,7 +279,7 @@ public class Main {
 					"<body bgcolor=\"red\"><h1>" +
 					"Page " + pageNumber +
 					" (" + ((pageNumber-1)*(itemsNumber)) + " - " + ((pageNumber*itemsNumber)-1) +
-					"</h1></br>");
+			"</h1></br>");
 			for(int i=1;i<=numOfPages;i++) {
 				out.write("<a href=\"outPrefix" + i + ".html\">Page " + i + "</a>&nbsp;&nbsp;");
 			}
@@ -292,9 +297,6 @@ public class Main {
 		}
 	}
 
-	/**
-	 * @param args
-	 */
 	public static void main(String[] args) throws Exception{
 		if(args.length < 3) {
 			System.out.println("enter <input_file> <output_prefix> <numPerFile>");
@@ -310,7 +312,7 @@ public class Main {
 			checkManagerInstance();
 			uploadFileToS3(pdflinks);
 			createAndSendToSQS();
-			bucketInfo = recieveFromSQS();
+			bucketInfo = receiveFromSQS();
 			List<ThumbPDF> outInfo = downloadFromS3(bucketInfo);
 			numOfPages = (int)(Math.ceil(outInfo.size()/numPF));
 
