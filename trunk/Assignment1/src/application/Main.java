@@ -1,10 +1,15 @@
 package application;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map.Entry;
+import java.util.UUID;
 
 
 import com.amazonaws.AmazonClientException;
@@ -24,7 +29,9 @@ import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
@@ -37,9 +44,9 @@ public class Main {
 	static AmazonEC2      ec2;
 	static AmazonS3		  s3;
 	static AmazonSQS	  sqs;
-	
-	private static final String Bucket = "PDFs";
-	private static final String Key = "key";
+
+	private static final String Bucket = "pdfsassignment1";
+	private static final String Key = UUID.randomUUID().toString();
 	private static final String QueueOut = "queueOut";
 	private static final String QueueIn = "queueIn";
 
@@ -75,12 +82,23 @@ public class Main {
 			System.out.println("Error Message: " + ace.getMessage());
 		}
 	}
-	
-	public static void downloadFromS3(String[] bucketInfo) throws IOException {
+
+	public static ArrayList<ThumbPDF> downloadFromS3(String[] bucketInfo) throws IOException {
+		List<ThumbPDF> outInfo = new ArrayList<ThumbPDF>();
 		try {
 			s3.createBucket(bucketInfo[0]);
 			System.out.println("Download an object from S3\n");
-			//s3.getObject(getObjectRequest)
+			S3Object object = s3.getObject(new GetObjectRequest(bucketInfo[0], bucketInfo[1]));
+			InputStream input = object.getObjectContent();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+			while (true) {
+				String line = reader.readLine();
+				if (line == null) break;
+				String[] temp = line.split(":");
+				outInfo.add(new ThumbPDF(temp[0],temp[1]));
+			}
+
+
 		}
 		catch (AmazonServiceException ase) {
 			System.out.println("Caught an AmazonServiceException, which means your request made it "
@@ -96,6 +114,7 @@ public class Main {
 					+ "such as not being able to access the network.");
 			System.out.println("Error Message: " + ace.getMessage());
 		}
+		return (ArrayList<ThumbPDF>) outInfo;
 	}
 
 	public static void checkManagerInstance() throws IOException {
@@ -150,7 +169,8 @@ public class Main {
 			CreateQueueRequest createQueueRequest = new CreateQueueRequest(QueueOut);
 			String myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
 			String outMsg = "Bucket=" + Bucket + ",Key=" + Key;
-			sqs.sendMessage(new SendMessageRequest(myQueueUrl, outMsg));
+			SendMessageRequest msg = new SendMessageRequest(myQueueUrl, outMsg);
+			sqs.sendMessage(msg);
 			return myQueueUrl;
 		}
 		catch (AmazonServiceException ase) {
@@ -169,9 +189,9 @@ public class Main {
 		}
 		return null;
 	}
-	
+
 	public static String[] recieveFromSQS() throws IOException, Exception {
-		String msg;
+		String msg = null;
 		String[] parsedMsg;
 		String[] LparsedMsg;
 		String[] RparsedMsg;
@@ -180,38 +200,41 @@ public class Main {
 		try {
 			CreateQueueRequest createQueueRequest = new CreateQueueRequest(QueueIn);
 			String myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
-            ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(myQueueUrl);
-            List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
-            for(;;) {
-            if(messages.size() == 0) {//queue is empty
-                System.out.println("Queue is empty");
-                Thread.sleep(1000);
-            }
-            else {
-            	msg = messages.get(0).getBody();
-            	break;
+			ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(myQueueUrl);
+			List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
+			for(;;) {
+				if(messages.size() == 0) {//queue is empty
+					System.out.println("Queue is empty");
+					Thread.sleep(1000);
+				}
+				else {
+					for (Message message : messages) {
+						if(message.getMessageId() == Key)
+							msg = message.getBody();
+						break;
+					}
+					break;
+				}
+			}
+			parsedMsg = msg.split(",");
+			if(parsedMsg.length == 2) {
+				LparsedMsg = parsedMsg[0].split("=");
+				RparsedMsg = parsedMsg[1].split("=");
+				if(LparsedMsg[0] == "Bucket") 
+					bucketInfo[0] = parsedMsg[1];
+				else {
+					throw badmsg;
+				}
+				if(RparsedMsg[1] == "Key") 
+					bucketInfo[1] = parsedMsg[1];
+				else {
+					throw badmsg;
+				}
+			}
+			else {
+				throw badmsg;
+			}
 
-            }
-            }
-            parsedMsg = msg.split(",");
-            if(parsedMsg.length == 2) {
-            LparsedMsg = parsedMsg[0].split("=");
-            RparsedMsg = parsedMsg[1].split("=");
-            if(LparsedMsg[0] == "Bucket") 
-            	bucketInfo[0] = parsedMsg[1];
-            else {
-            	throw badmsg;
-            }
-            if(RparsedMsg[1] == "Key") 
-            	bucketInfo[1] = parsedMsg[1];
-            else {
-            	throw badmsg;
-            }
-            }
-            else {
-            	throw badmsg;
-            }
-                    
 		}
 		catch (AmazonServiceException ase) {
 			System.out.println("Caught an AmazonServiceException, which means your request made it " +
@@ -229,29 +252,68 @@ public class Main {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		
+
 		return bucketInfo;
 	}
 
+
+	public static void createHTMLFile(String outPrefix, List<ThumbPDF> outInfo,int pageNumber,
+			int itemsNumber, int numOfPages) throws IOException {
+		String filename = outPrefix + pageNumber;
+		try   {
+			// Create file 
+			FileWriter fstream = new FileWriter(filename + ".html");
+			BufferedWriter out = new BufferedWriter(fstream);
+			out.write("<html><head><title>Yarden and Koby's Lovely HTML File</title></head>" +
+					"<body bgcolor=\"red\"><h1>" +
+					"Page " + pageNumber +
+					" (" + ((pageNumber-1)*(itemsNumber)) + " - " + ((pageNumber*itemsNumber)-1) +
+					"</h1></br>");
+			for(int i=1;i<=numOfPages;i++) {
+				out.write("<a href=\"outPrefix" + i + ".html\">Page " + i + "</a>&nbsp;&nbsp;");
+			}
+			out.write("</br></br>");
+			for(int i=0;i<itemsNumber;i++) {
+				ThumbPDF tempTP = outInfo.get(i);
+				out.write("<a href=\">" + tempTP.getPDF() + "\"><img src=\"" +
+						tempTP.getThumbnail() + "\"></img></a>");
+			}
+			out.write("</body></html>");
+			//Close the output stream
+			out.close();
+		}catch (Exception e){//Catch exception if any
+			System.err.println("Error: " + e.getMessage());
+		}
+	}
 
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) throws Exception{
-		//if(args.length < 2) {
-		//	System.out.println("enter the input file");
-		//}
-		//else {
+		if(args.length < 3) {
+			System.out.println("enter <input_file> <output_prefix> <numPerFile>");
+		}
+		else {			
 			String[] bucketInfo;
-			//File pdflinks = new File(args[1]);
+			File pdflinks = new File(args[0]);
+			String numPerFile = args[2];
+			int numPF = Integer.parseInt(numPerFile);
+			int numOfPages;
+
 			init();
-			//checkManagerInstance();
-			//uploadFileToS3(pdflinks);
+			checkManagerInstance();
+			uploadFileToS3(pdflinks);
 			createAndSendToSQS();
 			bucketInfo = recieveFromSQS();
-			downloadFromS3(bucketInfo);
+			List<ThumbPDF> outInfo = downloadFromS3(bucketInfo);
+			numOfPages = (int)(Math.ceil(outInfo.size()/numPF));
 
-		//}
+			for(int i=1;i<=numOfPages;i++) {
+				List<ThumbPDF> tempList = outInfo.subList(((numPF-1)*i), (numPF*i)-1);				
+				createHTMLFile(args[1],tempList,i,numPF,numOfPages);
+			}
+
+		}
 
 	}
 
