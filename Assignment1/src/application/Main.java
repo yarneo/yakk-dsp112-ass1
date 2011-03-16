@@ -87,7 +87,6 @@ public class Main {
 	public static ArrayList<ThumbPDF> downloadFromS3(String[] bucketInfo) throws IOException {
 		List<ThumbPDF> outInfo = new ArrayList<ThumbPDF>();
 		try {
-			s3.createBucket(bucketInfo[0]);
 			System.out.println("Download an object from S3\n");
 			S3Object object = s3.getObject(new GetObjectRequest(bucketInfo[0], bucketInfo[1]));
 			InputStream input = object.getObjectContent();
@@ -95,7 +94,7 @@ public class Main {
 			while (true) {
 				String line = reader.readLine();
 				if (line == null) break;
-				String[] temp = line.split(":");
+				String[] temp = line.split(",");
 				outInfo.add(new ThumbPDF(temp[0],temp[1]));
 			}
 
@@ -191,7 +190,7 @@ public class Main {
 		return null;
 	}
 
-	
+
 	public static String[] receiveFromSQS() throws IOException, Exception {
 		String msg = null;
 		String[] parsedMsg;
@@ -214,7 +213,7 @@ public class Main {
 						if(message.getBody().contains(Key)) {
 							msg = message.getBody();
 							String messageRecieptHandle = message.getReceiptHandle();
-				            sqs.deleteMessage(new DeleteMessageRequest(myQueueUrl, messageRecieptHandle));
+							sqs.deleteMessage(new DeleteMessageRequest(myQueueUrl, messageRecieptHandle));
 							break;
 						}
 					}
