@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import application.ThumbPDF;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -19,15 +18,9 @@ import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.PropertiesCredentials;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
-import com.amazonaws.services.ec2.model.CreateTagsRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
-import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
@@ -51,7 +44,7 @@ public class Main {
 	private static final String QueueOut = "queueOut";
 	private static final String QueueLinks = "queuelinks";
 	private static final String QueueThumbnails = "queuethumbnails";
-	private static final String Key = UUID.randomUUID().toString();
+	private static final String QueueIn = "queueIn";
 	private static boolean hasNodes = false;
 	private static boolean hasMessages = false;
 	private static List<AppNums> appNums = new ArrayList<AppNums>();
@@ -66,13 +59,13 @@ public class Main {
 
 	}
 	
-	public static List<BucketKey> receiveFromSQS() throws IOException, Exception {
+	public static List<StringPair> receiveFromSQS() throws IOException, Exception {
 		List<String> msgs = new ArrayList<String>();
 		String[] parsedMsg;
 		String[] LparsedMsg;
 		String[] RparsedMsg;
 		String[] bucketInfo = new String[2];
-		List<BucketKey> retFileInfo = new ArrayList<BucketKey>();
+		List<StringPair> retFileInfo = new ArrayList<StringPair>();
 		Exception badmsg = new Exception("bad message syntax");
 		try {
 			CreateQueueRequest createQueueRequest = new CreateQueueRequest(QueueOut);
@@ -117,7 +110,7 @@ public class Main {
 			else {
 				throw badmsg;
 			}
-			retFileInfo.add(new BucketKey(bucketInfo[0],bucketInfo[1]));
+			retFileInfo.add(new StringPair(bucketInfo[0],bucketInfo[1]));
 			}
 
 		}
@@ -141,24 +134,24 @@ public class Main {
 		return retFileInfo;
 	}
 	
-	public static List<BucketKey> downloadFromS3(List<BucketKey> msgsInfo) throws IOException {
+	public static List<StringPair> downloadFromS3(List<StringPair> msgsInfo) throws IOException {
 		int i=0;
-		List<BucketKey> bucketLink = new ArrayList<BucketKey>();
+		List<StringPair> bucketLink = new ArrayList<StringPair>();
 		try {
-			for(BucketKey bucketInfo : msgsInfo) {
+			for(StringPair bucketInfo : msgsInfo) {
 				i=0;
 			//s3.createBucket(bucketInfo.getBucket());
 			System.out.println("Download an object from S3\n");
-			S3Object object = s3.getObject(new GetObjectRequest(bucketInfo.getBucket(), bucketInfo.getKey()));
+			S3Object object = s3.getObject(new GetObjectRequest(bucketInfo.getStringA(), bucketInfo.getStringB()));
 			InputStream input = object.getObjectContent();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(input));
 			while (true) {
 				String line = reader.readLine();
 				if (line == null) break;
-				bucketLink.add(new BucketKey(bucketInfo.getKey(),line));
+				bucketLink.add(new StringPair(bucketInfo.getStringB(),line));
 				i++;
 			}
-			appNums.add(new AppNums(bucketInfo.getKey(),i));
+			appNums.add(new AppNums(bucketInfo.getStringB(),i));
 			}
 
 			
@@ -180,12 +173,12 @@ public class Main {
 		return bucketLink;
 	}
 	
-	public static void createAndSendToSQS(List<BucketKey> bucketLinks) throws IOException {
+	public static void createAndSendToSQS(List<StringPair> bucketLinks) throws IOException {
 		try {
 			CreateQueueRequest createQueueRequest = new CreateQueueRequest(QueueLinks);
 			String myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
-			for(BucketKey bucketLink : bucketLinks) {
-			String outMsg = "Bucket=" + bucketLink.getBucket() + ",Link=" + bucketLink.getKey();
+			for(StringPair bucketLink : bucketLinks) {
+			String outMsg = "Bucket=" + bucketLink.getStringA() + ",Link=" + bucketLink.getStringB();
 			SendMessageRequest msg = new SendMessageRequest(myQueueUrl, outMsg);
 			sqs.sendMessage(msg);
 			}
@@ -291,7 +284,7 @@ public class Main {
 				for(AppNums app : appNums) {
 					if(app.getKey().equals(RparsedMsg)) {
 						app.setCurrentNum(app.getCurrentNum()+1);
-						app.links.add(new BucketKey(LparsedMsg,MparsedMsg));
+						app.links.add(new StringPair(LparsedMsg,MparsedMsg));
 						break;
 					}
 				}
@@ -320,14 +313,14 @@ public class Main {
 		}
 	}
 	
-	public static File createOutputFile(ArrayList<BucketKey> links) throws IOException {
-		File file = new File(Key);
+	public static File createOutputFile(ArrayList<StringPair> links,String filename) throws IOException {
+		File file = new File(filename);
 		try   {
 			// Create file 
 			FileWriter fstream = new FileWriter(file);
 			BufferedWriter out = new BufferedWriter(fstream);
-			for(BucketKey link : links) {
-				out.write(link.getBucket() + "," + link.getKey() + "/n");
+			for(StringPair link : links) {
+				out.write(link.getStringA() + "," + link.getStringB() + "/n");
 			}			
 			out.close();
 		}catch (Exception e){//Catch exception if any
@@ -336,10 +329,10 @@ public class Main {
 		return file;
 	}
 	
-	public static void uploadFileToS3(File file) throws IOException {
+	public static void uploadFileToS3(File file,String uniqueName) throws IOException {
 		try {
 			System.out.println("Uploading a new object to S3 from a file\n");
-			s3.putObject(new PutObjectRequest(Bucket, Key, file));
+			s3.putObject(new PutObjectRequest(Bucket, uniqueName, file));
 		}
 		catch (AmazonServiceException ase) {
 			System.out.println("Caught an AmazonServiceException, which means your request made it "
@@ -358,9 +351,33 @@ public class Main {
 	}
 	
 	
+	public static void createAndSendToSQS2(String appKey,String uniqueKey) throws IOException {
+		try {
+			CreateQueueRequest createQueueRequest = new CreateQueueRequest(QueueIn);
+			String myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
+			String outMsg = "AppKey=" + appKey +",Bucket=" + Bucket + ",Key=" + uniqueKey;
+			SendMessageRequest msg = new SendMessageRequest(myQueueUrl, outMsg);
+			sqs.sendMessage(msg);
+		}
+		catch (AmazonServiceException ase) {
+			System.out.println("Caught an AmazonServiceException, which means your request made it " +
+			"to Amazon SQS, but was rejected with an error response for some reason.");
+			System.out.println("Error Message:        " + ase.getMessage());
+			System.out.println("HTTP Status Code: " + ase.getStatusCode());
+			System.out.println("AWS Error Code:   " + ase.getErrorCode());
+			System.out.println("Error Type:           " + ase.getErrorType());
+			System.out.println("Request ID:           " + ase.getRequestId());
+		} catch (AmazonClientException ace) {
+			System.out.println("Caught an AmazonClientException, which means the client encountered " +
+					"a serious internal problem while trying to communicate with SQS, such as not " +
+			"being able to access the network.");
+			System.out.println("Error Message: " + ace.getMessage());
+		}
+	}
+	
 	public static void main(String[] args) throws Exception {
-		List<BucketKey> msgsInfo = new ArrayList<BucketKey>();
-		List<BucketKey> bucketLinks = new ArrayList<BucketKey>();
+		List<StringPair> msgsInfo = new ArrayList<StringPair>();
+		List<StringPair> bucketLinks = new ArrayList<StringPair>();
 		List<String> instanceIDs = new ArrayList<String>();
 		int numOfMsgs;
 		int numOfWorkers;
@@ -392,12 +409,14 @@ public class Main {
 
 			for(AppNums app : appNums) {
 				if(app.getNumberOfPDFs() == app.getCurrentNum()) {
+					String uniqueName = UUID.randomUUID().toString();
 					/*create output file of all pdfs and thumbnails of certain user*/
-					File file = createOutputFile(app.links);
+					File file = createOutputFile(app.links,uniqueName);
 					/*upload file to S3*/
-					uploadFileToS3(file);
+					uploadFileToS3(file,uniqueName);
 					/*send message to the user queue with the place of the file*/
-					//TODO: need to send a message to app with his key(uuid),
+					createAndSendToSQS2(app.getKey(),uniqueName);
+					//send a message to app with his key(uuid),
 					//my key(uuid) and bucket
 					//need to change application that will get 3 fields and not only 2
 					//from the SQS

@@ -7,7 +7,7 @@ public class AppNums {
 	private String key;
 	private int numberOfPDFs;
 	private int currentNum;
-	public ArrayList<BucketKey> links = new ArrayList<BucketKey>(); 
+	public ArrayList<StringPair> links = new ArrayList<StringPair>(); 
 	
 	
 	public AppNums(String key, int numberOfPDFs) {
