@@ -227,9 +227,9 @@ public class Main {
 			}
 			//System.out.println(msg);
 			parsedMsg = msg.split(",");
-			if(parsedMsg.length == 2) {
-				LparsedMsg = parsedMsg[0].split("=");
-				RparsedMsg = parsedMsg[1].split("=");
+			if(parsedMsg.length == 3) {
+				LparsedMsg = parsedMsg[1].split("=");
+				RparsedMsg = parsedMsg[2].split("=");
 				if(LparsedMsg[0].equals("Bucket")) 
 					bucketInfo[0] = LparsedMsg[1];
 				else {
