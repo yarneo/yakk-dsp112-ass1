@@ -178,7 +178,7 @@ public class Main {
 			CreateQueueRequest createQueueRequest = new CreateQueueRequest(QueueLinks);
 			String myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
 			for(StringPair bucketLink : bucketLinks) {
-				String outMsg = "Bucket=" + bucketLink.getStringA() + ",Link=" + bucketLink.getStringB();
+				String outMsg = "App=" + bucketLink.getStringA() + ",Link=" + bucketLink.getStringB();
 				SendMessageRequest msg = new SendMessageRequest(myQueueUrl, outMsg);
 				sqs.sendMessage(msg);
 			}
@@ -228,6 +228,7 @@ public class Main {
 				TerminateInstancesRequest terminateInstancesRequest = new TerminateInstancesRequest(instanceIDs);
 				ec2.terminateInstances(terminateInstancesRequest);
 				hasMessages = false;
+				hasNodes = false;
 			}
 			else {
 				Thread.sleep(1000);
@@ -279,7 +280,7 @@ public class Main {
 				parsedMsg = msg.split(",");
 				if(parsedMsg.length == 3) {
 					LparsedMsg = parsedMsg[0]; //pdf link
-					MparsedMsg = parsedMsg[1]; //bucket key for thumbnail
+					MparsedMsg = parsedMsg[1]; //S3 link of thumbnail
 					RparsedMsg = parsedMsg[2]; //uuid of application
 					for(AppNums app : appNums) {
 						if(app.getKey().equals(RparsedMsg)) {
@@ -383,43 +384,60 @@ public class Main {
 		int numOfWorkers;
 		init();
 		for(;;) {
-			/*receive bucket and key from the queue for every application. The key is the uuid of
-		the application.*/
+			/* receive bucket and key from the queue for every application. The key is the uuid of
+			 * the application UUID. */
 			msgsInfo = receiveFromSQS();
+			/* if msgInfo is null, meaning that no messages were in the SQS meaning that there was no jobs given by the application,
+			 * then you can just jump over the processing of the messages */
 			if(msgsInfo != null) {
-				/*I download from S3 the pdf list using the bucket and key*/
+				/* I download from S3 the pdf list using the bucket and key.
+				 * I receive in bucketLinks a pair of strings: <app-key,pdf-link>
+				 * I add to the array of appNums objects, for each application, the amount of links needed to process */
 				bucketLinks = downloadFromS3(msgsInfo);
-				/*I create a queue and send a message for every link, containing the UUID/Key
-		and the link itself*/
+				/* I create a queue QueueLinks and send a message for every link, 
+				 * containing the UUID/Key of the application and the link itself
+				 * Message Format to Worker: App=<UUID OF APP>,Link=<PDF LINK> */
 				createAndSendToSQS(bucketLinks);
+				/* If we sent messages, it means we are also going to receive messages,
+				 * then we will need to check for them, so hasMessages=true */
 				hasMessages = true;
 				numOfMsgs = bucketLinks.size();
 				numOfWorkers = (int)(Math.ceil(numOfMsgs/100));
-				/*I create a worker node for every 100 messages in the queue*/
+				/* I create a worker node for every 100 messages in the queue
+				 * Computer type: Micro, Image: ami-76f0061f */
 				instanceIDs = createWorkerNodes(numOfWorkers);
+				/* This means we now have worker nodes, so we will need to check if they need to be deleted
+				 * after they finished their job */
 				hasNodes = true;
 			}
 			if(hasNodes)
-				/*if there are workers still alive I delete them if the link queue is empty*/
+				/* if there are workers still alive I delete them if the link queue is empty
+				 * because that means that they have processed all of the messages I have gave them */
 				checkSQSAndDeleteNodes(instanceIDs);
+			/*TODO: weak point, do I wait till all messages are processed by the apps to obtain a result,
+			 *      or do I meanwhile add more jobs from new applications. If I carry bringing more jobs
+			 *      all the time, there can be a case that the messages being processes queue will never be
+			 *      empty, so we will never obtain a result. */
 			if(!hasMessages) {
-				/*receive msg from sqs of pdf and image and uuid of certain application
-				 * <pdf_link,s3_link,app_key(uuid of app)>*/
+				/* receive message from the SQS QueueThumbnails of PDF link, Thumbnail link and UUID of certain application
+				 * Message Format from Worker: <pdf_link,s3_link,app_key(uuid of app)> 
+				 * For each messages returned we update the array of appNums objects with incrementing by 1 the done jobs for that
+				 * application, and adding the PDF link and Thumbnail link to its StringPair */
 				receiveFromSQS2();
-
+				/* For each application in the appNums array that its done jobs is equal to the number of PDFS it had to process
+				 * we do the following. */
 				for(AppNums app : appNums) {
 					if(app.getNumberOfPDFs() == app.getCurrentNum()) {
 						String uniqueName = UUID.randomUUID().toString();
-						/*create output file of all pdfs and thumbnails of certain user*/
+						/* create output file of all pdfs and thumbnails of certain user
+						 * The filename is a unique name (UUID) so there wont be files overwriting each other
+						 * The output file format is: For Each Line: <pdf-link,s3-thumbnail-link> */
 						File file = createOutputFile(app.links,uniqueName);
-						/*upload file to S3*/
+						/* upload file to S3 with the key being the uniqueName */
 						uploadFileToS3(file,uniqueName);
-						/*send message to the user queue with the place of the file*/
+						/* send message to the user queue with the place of the file
+						 * Message Format to User: <AppKey=Application_UUID,Bucket=Bucket,Key=uniqueName> */
 						createAndSendToSQS2(app.getKey(),uniqueName);
-						//send a message to app with his key(uuid),
-						//my key(uuid) and bucket
-						//need to change application that will get 3 fields and not only 2
-						//from the SQS
 					}
 				}
 			}
