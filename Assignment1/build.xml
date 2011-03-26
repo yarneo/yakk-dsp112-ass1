@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns:ivy="antlib:org.apache.ivy.ant" name="assignment1" default="default">
+	<property name="src.dir" value="src" />	
+	<property name="lib.dir" value="lib" />
+	
+	<path id="lib.path.id">
+		<fileset dir="${lib.dir}" />
+	</path>
+	<path id="run.path.id">
+		<path refid="lib.path.id" />
+		<path location="${src.dir}" />
+	</path>
+	
+	<target name="retrieve">
+		<ivy:retrieve />
+	</target>
+	
+	<target name="compile" depends="retrieve">				
+		<javac srcdir="${src.dir}" classpathref="lib.path.id" />
+	</target>
+		
+	<target name="run_worker" depends="compile">
+		<java classname="worker.Main" classpathref="run.path.id">
+			<sysproperty name="java.util.logging.config.file" value="${src.dir}/worker/worker_logging.properties" />
+		</java>
+	</target>
+	
+	<target name="run_manager" depends="compile">
+		<java classname="manager.Main" classpathref="run.path.id">
+			<sysproperty name="java.util.logging.config.file" value="${src.dir}/manager/manager_logging.properties" />
+		</java>
+	</target>
+	
+	<target name="app_jar" depends="compile">
+		<pathconvert property="jar.classpath" pathsep=" ">
+		    <path refid="lib.path.id" />		    
+		</pathconvert>
+		
+		<jar destfile="pdfextraction.jar" basedir="${src.dir}">
+			<manifest>
+				<attribute name="Main-Class" value="application.Main" />
+				<attribute name="Class-Path" value="${jar.classpath}" />
+			</manifest>			
+		</jar>
+	</target>
+	
+    <target name="default" depends="compile" />	
+</project>
