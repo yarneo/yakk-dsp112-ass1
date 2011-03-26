@@ -179,6 +179,7 @@ public class Main {
 			
 				List<Instance> instances = ec2.runInstances(request2).getReservation().getInstances();
 				for(Instance instance : instances) {
+					System.out.println("Created manager instance " + instance.getInstanceId());
 					instanceID.add(instance.getInstanceId());
 				}
 				CreateTagsRequest CTR = new CreateTagsRequest(instanceID,managerTag);
