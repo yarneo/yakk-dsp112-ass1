@@ -10,7 +10,8 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -34,17 +35,20 @@ import com.amazonaws.services.sqs.model.DeleteMessageRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+import common.Consts;
 
 public class Main {
 	static AmazonEC2	  ec2;
 	static AmazonS3		  s3;
 	static AmazonSQS	  sqs;
 
-	private static final String Bucket = "pdfsassignment1";
-	private static final String QueueOut = "queueOut";
-	private static final String QueueLinks = "queuelinks";
-	private static final String QueueThumbnails = "queuethumbnails";
-	private static final String QueueIn = "queueIn";
+	private static Logger logger = Logger.getLogger("manager.Main");
+	private static final String workerUserData = getWorkerUserData();
+	private static final String Bucket = Consts.LINKS_BUCKET_NAME;
+	private static final String QueueOut = Consts.OUTPUT_QUEUE_NAME;
+	private static final String QueueLinks = Consts.WORKER_PDF_REQUEST_QUEUE_NAME;
+	private static final String QueueThumbnails = Consts.WORKER_PDF_RESPONSE_QUEUE_NAME;
+	private static final String QueueIn = Consts.INPUT_QUEUE_NAME;
 	private static boolean hasNodes = false;
 	private static boolean hasMessages = false;
 	private static List<AppNums> appNums = new ArrayList<AppNums>();
@@ -74,7 +78,7 @@ public class Main {
 			for(;;) {
 				List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
 				if((messages.size() == 0) && (!hasNodes)) {//queue is empty
-					System.out.println("Queue is empty");
+					logger.log(Level.INFO, "Queue is empty");
 					Thread.sleep(1000);
 				}
 				else if(messages.size() != 0){
@@ -115,6 +119,7 @@ public class Main {
 
 		}
 		catch (AmazonServiceException ase) {
+			logger.log(Level.SEVERE, "Amazon service error", ase);
 			System.out.println("Caught an AmazonServiceException, which means your request made it " +
 			"to Amazon SQS, but was rejected with an error response for some reason.");
 			System.out.println("Error Message:        " + ase.getMessage());
@@ -123,11 +128,13 @@ public class Main {
 			System.out.println("Error Type:           " + ase.getErrorType());
 			System.out.println("Request ID:           " + ase.getRequestId());
 		} catch (AmazonClientException ace) {
+			logger.log(Level.SEVERE, "Amazon client error", ace);
 			System.out.println("Caught an AmazonClientException, which means the client encountered " +
 					"a serious internal problem while trying to communicate with SQS, such as not " +
 			"being able to access the network.");
 			System.out.println("Error Message: " + ace.getMessage());
 		} catch (InterruptedException e) {
+			logger.log(Level.SEVERE, "Manager interrupted", e);
 			e.printStackTrace();
 		}
 
@@ -141,7 +148,7 @@ public class Main {
 			for(StringPair bucketInfo : msgsInfo) {
 				i=0;
 				//s3.createBucket(bucketInfo.getBucket());
-				System.out.println("Download an object from S3\n");
+				logger.log(Level.INFO, "Download an object from S3");				
 				S3Object object = s3.getObject(new GetObjectRequest(bucketInfo.getStringA(), bucketInfo.getStringB()));
 				InputStream input = object.getObjectContent();
 				BufferedReader reader = new BufferedReader(new InputStreamReader(input));
@@ -157,6 +164,7 @@ public class Main {
 
 		}
 		catch (AmazonServiceException ase) {
+			logger.log(Level.SEVERE, "Amazon service error", ase);
 			System.out.println("Caught an AmazonServiceException, which means your request made it "
 					+ "to Amazon S3, but was rejected with an error response for some reason.");
 			System.out.println("Error Message:        " + ase.getMessage());
@@ -165,6 +173,7 @@ public class Main {
 			System.out.println("Error Type:           " + ase.getErrorType());
 			System.out.println("Request ID:           " + ase.getRequestId());
 		} catch (AmazonClientException ace) {
+			logger.log(Level.SEVERE, "Amazon client error", ace);
 			System.out.println("Caught an AmazonClientException, which means the client encountered "
 					+ "a serious internal problem while trying to communicate with S3, "
 					+ "such as not being able to access the network.");
@@ -184,6 +193,7 @@ public class Main {
 			}
 		}
 		catch (AmazonServiceException ase) {
+			logger.log(Level.SEVERE, "Amazon service error", ase);
 			System.out.println("Caught an AmazonServiceException, which means your request made it " +
 			"to Amazon SQS, but was rejected with an error response for some reason.");
 			System.out.println("Error Message:        " + ase.getMessage());
@@ -192,24 +202,73 @@ public class Main {
 			System.out.println("Error Type:           " + ase.getErrorType());
 			System.out.println("Request ID:           " + ase.getRequestId());
 		} catch (AmazonClientException ace) {
+			logger.log(Level.SEVERE, "Amazon client error", ace);
 			System.out.println("Caught an AmazonClientException, which means the client encountered " +
 					"a serious internal problem while trying to communicate with SQS, such as not " +
 			"being able to access the network.");
 			System.out.println("Error Message: " + ace.getMessage());
 		}
 	}
+	
+	static String replace(String str, String pattern, String replace) {
+	    int s = 0;
+	    int e = 0;
+	    StringBuffer result = new StringBuffer();
+
+	    while ((e = str.indexOf(pattern, s)) >= 0) {
+	        result.append(str.substring(s, e));
+	        result.append(replace);
+	        s = e+pattern.length();
+	    }
+	    result.append(str.substring(s));
+	    return result.toString();
+	}
+	
+	public static String getWorkerUserData()
+	{
+		try {
+			AWSCredentials credentials = new PropertiesCredentials(
+					Main.class.getResourceAsStream("AwsCredentials.properties"));
+			
+			String accessKey = credentials.getAWSAccessKeyId();
+			String secretKey = credentials.getAWSSecretKey();
+			
+			InputStream workerUserDataInputStream = 
+				Main.class.getResourceAsStream("worker/start_worker.sh");
+			BufferedReader br = new BufferedReader(new InputStreamReader(workerUserDataInputStream));
+			StringBuilder sb = new StringBuilder();
+			String line;
+			
+			while ((line = br.readLine()) != null) {
+				sb.append(line);
+				sb.append('\n');
+			}
+							
+			return replace(replace(sb.toString(), "REPLACED_WITH_ACCESS_KEY", accessKey),
+							"REPLACED_WITH_SECRET_KEY", secretKey);
+		} catch (IOException e) {
+			logger.log(Level.SEVERE, "I/O error reading user data", e);
+			System.exit(1);
+			return null;
+		}	
+	}
 
 	public static List<String> createWorkerNodes(int numOfWorkers) throws IOException {
 		List<String> instanceID = new ArrayList<String>();
 		try {
-			// Basic 32-bit Amazon Linux AMI 1.0 (AMI Id: ami-08728661)
-			RunInstancesRequest request = new RunInstancesRequest("ami-76f0061f", numOfWorkers, numOfWorkers);
+			// ubuntu-maverick-10.10-amd64-server-20101225 (ami-cef405a7)
+			RunInstancesRequest request = new RunInstancesRequest("ami-cef405a7", numOfWorkers, numOfWorkers);
 			request.setInstanceType(InstanceType.T1Micro.toString());
+			request.setUserData(workerUserData);
 			List<Instance> instances = ec2.runInstances(request).getReservation().getInstances();
+			for (Instance i : instances) {
+				logger.log(Level.INFO, "Created worker instance ", i.getInstanceId());
+			}
 			for(Instance instance : instances) {
 				instanceID.add(instance.getInstanceId());
 			}
 		} catch (AmazonServiceException ase) {
+			logger.log(Level.SEVERE, "Amazon service error", ase);
 			System.out.println("Caught Exception: " + ase.getMessage());
 			System.out.println("Reponse Status Code: " + ase.getStatusCode());
 			System.out.println("Error Code: " + ase.getErrorCode());
@@ -235,6 +294,7 @@ public class Main {
 			}
 		}
 		catch (AmazonServiceException ase) {
+			logger.log(Level.SEVERE, "Amazon service error", ase);
 			System.out.println("Caught an AmazonServiceException, which means your request made it " +
 			"to Amazon SQS, but was rejected with an error response for some reason.");
 			System.out.println("Error Message:        " + ase.getMessage());
@@ -243,6 +303,7 @@ public class Main {
 			System.out.println("Error Type:           " + ase.getErrorType());
 			System.out.println("Request ID:           " + ase.getRequestId());
 		} catch (AmazonClientException ace) {
+			logger.log(Level.SEVERE, "Amazon client error", ace);
 			System.out.println("Caught an AmazonClientException, which means the client encountered " +
 					"a serious internal problem while trying to communicate with SQS, such as not " +
 			"being able to access the network.");
@@ -264,6 +325,7 @@ public class Main {
 			ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(myQueueUrl);
 			List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
 			if((messages.size() == 0)) {//queue is empty
+				logger.log(Level.INFO, "Queue is empty");
 				System.out.println("Queue is empty");
 				Thread.sleep(1000);
 			}
@@ -297,6 +359,7 @@ public class Main {
 
 		}
 		catch (AmazonServiceException ase) {
+			logger.log(Level.SEVERE, "Amazon service error", ase);
 			System.out.println("Caught an AmazonServiceException, which means your request made it " +
 			"to Amazon SQS, but was rejected with an error response for some reason.");
 			System.out.println("Error Message:        " + ase.getMessage());
@@ -305,6 +368,7 @@ public class Main {
 			System.out.println("Error Type:           " + ase.getErrorType());
 			System.out.println("Request ID:           " + ase.getRequestId());
 		} catch (AmazonClientException ace) {
+			logger.log(Level.SEVERE, "Amazon client error", ace);
 			System.out.println("Caught an AmazonClientException, which means the client encountered " +
 					"a serious internal problem while trying to communicate with SQS, such as not " +
 			"being able to access the network.");
@@ -336,6 +400,7 @@ public class Main {
 			s3.putObject(new PutObjectRequest(Bucket, uniqueName, file));
 		}
 		catch (AmazonServiceException ase) {
+			logger.log(Level.SEVERE, "Amazon service error", ase);
 			System.out.println("Caught an AmazonServiceException, which means your request made it "
 					+ "to Amazon S3, but was rejected with an error response for some reason.");
 			System.out.println("Error Message:        " + ase.getMessage());
@@ -344,6 +409,7 @@ public class Main {
 			System.out.println("Error Type:           " + ase.getErrorType());
 			System.out.println("Request ID:           " + ase.getRequestId());
 		} catch (AmazonClientException ace) {
+			logger.log(Level.SEVERE, "Amazon client error", ace);
 			System.out.println("Caught an AmazonClientException, which means the client encountered "
 					+ "a serious internal problem while trying to communicate with S3, "
 					+ "such as not being able to access the network.");
@@ -361,6 +427,7 @@ public class Main {
 			sqs.sendMessage(msg);
 		}
 		catch (AmazonServiceException ase) {
+			logger.log(Level.SEVERE, "Amazon service error", ase);
 			System.out.println("Caught an AmazonServiceException, which means your request made it " +
 			"to Amazon SQS, but was rejected with an error response for some reason.");
 			System.out.println("Error Message:        " + ase.getMessage());
@@ -369,6 +436,7 @@ public class Main {
 			System.out.println("Error Type:           " + ase.getErrorType());
 			System.out.println("Request ID:           " + ase.getRequestId());
 		} catch (AmazonClientException ace) {
+			logger.log(Level.SEVERE, "Amazon client error", ace);
 			System.out.println("Caught an AmazonClientException, which means the client encountered " +
 					"a serious internal problem while trying to communicate with SQS, such as not " +
 			"being able to access the network.");

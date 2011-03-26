@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentials;
@@ -29,6 +28,8 @@ import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.CannedAccessControlList;
+import com.amazonaws.services.s3.model.CreateBucketRequest;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
@@ -39,6 +40,7 @@ import com.amazonaws.services.sqs.model.DeleteMessageRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+import common.Consts;
 
 
 public class Main {
@@ -46,10 +48,10 @@ public class Main {
 	static AmazonS3		  s3;
 	static AmazonSQS	  sqs;
 
-	private static final String Bucket = "pdfsassignment1";
+	private static final String Bucket = Consts.LINKS_BUCKET_NAME;
 	private static final String Key = UUID.randomUUID().toString();
-	private static final String QueueOut = "queueOut";
-	private static final String QueueIn = "queueIn";
+	private static final String QueueOut = Consts.OUTPUT_QUEUE_NAME;
+	private static final String QueueIn = Consts.INPUT_QUEUE_NAME;
 
 
 	private static void init() throws Exception {
@@ -64,7 +66,9 @@ public class Main {
 
 	public static void uploadFileToS3(File file) throws IOException {
 		try {
-			s3.createBucket(Bucket);
+			CreateBucketRequest cbr = new CreateBucketRequest(Bucket);
+			cbr.setCannedAcl(CannedAccessControlList.PublicRead);
+			s3.createBucket(cbr);
 			System.out.println("Uploading a new object to S3 from a file\n");
 			s3.putObject(new PutObjectRequest(Bucket, Key, file));
 		}
@@ -116,6 +120,42 @@ public class Main {
 		}
 		return (ArrayList<ThumbPDF>) outInfo;
 	}
+	
+	static String replace(String str, String pattern, String replace) {
+	    int s = 0;
+	    int e = 0;
+	    StringBuffer result = new StringBuffer();
+
+	    while ((e = str.indexOf(pattern, s)) >= 0) {
+	        result.append(str.substring(s, e));
+	        result.append(replace);
+	        s = e+pattern.length();
+	    }
+	    result.append(str.substring(s));
+	    return result.toString();
+	}
+	
+	public static String getManagerUserData() throws IOException
+	{
+		AWSCredentials credentials = new PropertiesCredentials(
+				Main.class.getResourceAsStream("AwsCredentials.properties"));
+		
+		String accessKey = credentials.getAWSAccessKeyId();
+		String secretKey = credentials.getAWSSecretKey();
+		
+		InputStream managerUserDataInputStream = 
+			Main.class.getResourceAsStream("manager/start_manager.sh");
+		BufferedReader br = new BufferedReader(new InputStreamReader(managerUserDataInputStream));
+		StringBuilder sb = new StringBuilder();
+		String line;
+		while ((line = br.readLine()) != null) {
+			sb.append(line);
+			sb.append('\n');
+		}
+				
+		return replace(replace(sb.toString(), "REPLACED_WITH_ACCESS_KEY", accessKey),
+				"REPLACED_WITH_SECRET_KEY", secretKey);
+	}
 
 	public static void checkManagerInstance() throws IOException {
 		DescribeInstancesRequest request = new DescribeInstancesRequest();
@@ -132,9 +172,11 @@ public class Main {
 
 		if(reservations.isEmpty()) {//no manager node
 			try {
-				// Basic 32-bit Amazon Linux AMI 1.0 (AMI Id: ami-08728661)
-				RunInstancesRequest request2 = new RunInstancesRequest("ami-76f0061f", 1, 1);
-				request2.setInstanceType(InstanceType.T1Micro.toString());
+				// ubuntu-maverick-10.10-amd64-server-20101225 (ami-cef405a7)
+				RunInstancesRequest request2 = new RunInstancesRequest("ami-cef405a7", 1, 1);
+				request2.setInstanceType(InstanceType.T1Micro.toString());			
+				request2.setUserData(getManagerUserData());
+			
 				List<Instance> instances = ec2.runInstances(request2).getReservation().getInstances();
 				for(Instance instance : instances) {
 					instanceID.add(instance.getInstanceId());
