@@ -260,11 +260,9 @@ public class Main {
 			RunInstancesRequest request = new RunInstancesRequest("ami-cef405a7", numOfWorkers, numOfWorkers);
 			request.setInstanceType(InstanceType.T1Micro.toString());
 			request.setUserData(workerUserData);
-			List<Instance> instances = ec2.runInstances(request).getReservation().getInstances();
-			for (Instance i : instances) {
-				logger.log(Level.INFO, "Created worker instance ", i.getInstanceId());
-			}
+			List<Instance> instances = ec2.runInstances(request).getReservation().getInstances();			
 			for(Instance instance : instances) {
+				logger.log(Level.INFO, "Created worker instance ", instance.getInstanceId());
 				instanceID.add(instance.getInstanceId());
 			}
 		} catch (AmazonServiceException ase) {
