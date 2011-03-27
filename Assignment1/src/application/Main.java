@@ -376,13 +376,12 @@ public class Main {
 			createAndSendToSQS();
 			bucketInfo = receiveFromSQS();
 			List<ThumbPDF> outInfo = downloadFromS3(bucketInfo);
-			numOfPages = (int)(Math.ceil(outInfo.size()/numPF));
+			numOfPages = (int)(Math.ceil((double)outInfo.size()/numPF));
 
-			for(int i=1;i<=numOfPages;i++) {
-				List<ThumbPDF> tempList = outInfo.subList(((numPF-1)*i), (numPF*i)-1);				
-				createHTMLFile(args[1],tempList,i,numPF,numOfPages);
+			for(int i=0;i<=numOfPages;i++) {
+				List<ThumbPDF> tempList = outInfo.subList(((numPF)*i), Math.min(((numPF*(i+1))-1),outInfo.size()-1));				
+				createHTMLFile(args[1],tempList,i+1,numPF,numOfPages);
 			}
-
 		}
 
 	}
