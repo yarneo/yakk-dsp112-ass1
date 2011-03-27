@@ -56,7 +56,7 @@ public class Main {
 		
 		try {
 			AWSCredentials creds = new PropertiesCredentials(
-					Main.class.getResourceAsStream("AwsCredentials.properties"));
+					Main.class.getResourceAsStream("/AwsCredentials.properties"));
 			
 			AmazonSQS sqs = new AmazonSQSClient(creds);
 			AmazonS3 s3 = new AmazonS3Client(creds);

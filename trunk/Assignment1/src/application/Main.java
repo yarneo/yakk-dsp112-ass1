@@ -56,7 +56,7 @@ public class Main {
 
 	private static void init() throws Exception {
 		AWSCredentials credentials = new PropertiesCredentials(
-				Main.class.getResourceAsStream("AwsCredentials.properties"));
+				Main.class.getResourceAsStream("/AwsCredentials.properties"));
 
 		ec2 = new AmazonEC2Client(credentials);
 		s3  = new AmazonS3Client(credentials);
@@ -138,13 +138,13 @@ public class Main {
 	public static String getManagerUserData() throws IOException
 	{
 		AWSCredentials credentials = new PropertiesCredentials(
-				Main.class.getResourceAsStream("AwsCredentials.properties"));
+				Main.class.getResourceAsStream("/AwsCredentials.properties"));
 		
 		String accessKey = credentials.getAWSAccessKeyId();
 		String secretKey = credentials.getAWSSecretKey();
 		
 		InputStream managerUserDataInputStream = 
-			Main.class.getResourceAsStream("manager/start_manager.sh");
+			Main.class.getResourceAsStream("/manager/start_manager.sh");
 		BufferedReader br = new BufferedReader(new InputStreamReader(managerUserDataInputStream));
 		StringBuilder sb = new StringBuilder();
 		String line;

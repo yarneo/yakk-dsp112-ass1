@@ -55,7 +55,7 @@ public class Main {
 
 	private static void init() throws Exception {
 		AWSCredentials credentials = new PropertiesCredentials(
-				Main.class.getResourceAsStream("AwsCredentials.properties"));
+				Main.class.getResourceAsStream("/AwsCredentials.properties"));
 
 		ec2 = new AmazonEC2Client(credentials);
 		s3  = new AmazonS3Client(credentials);
@@ -228,13 +228,13 @@ public class Main {
 	{
 		try {
 			AWSCredentials credentials = new PropertiesCredentials(
-					Main.class.getResourceAsStream("AwsCredentials.properties"));
+					Main.class.getResourceAsStream("/AwsCredentials.properties"));
 			
 			String accessKey = credentials.getAWSAccessKeyId();
 			String secretKey = credentials.getAWSSecretKey();
 			
 			InputStream workerUserDataInputStream = 
-				Main.class.getResourceAsStream("worker/start_worker.sh");
+				Main.class.getResourceAsStream("/worker/start_worker.sh");
 			BufferedReader br = new BufferedReader(new InputStreamReader(workerUserDataInputStream));
 			StringBuilder sb = new StringBuilder();
 			String line;
