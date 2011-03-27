@@ -35,6 +35,8 @@ import com.amazonaws.services.sqs.model.DeleteMessageRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+
+import common.Base64;
 import common.Consts;
 
 public class Main {
@@ -244,8 +246,8 @@ public class Main {
 				sb.append('\n');
 			}
 							
-			return replace(replace(sb.toString(), "REPLACED_WITH_ACCESS_KEY", accessKey),
-							"REPLACED_WITH_SECRET_KEY", secretKey);
+			return Base64.encode(replace(replace(sb.toString(), "REPLACED_WITH_ACCESS_KEY", accessKey),
+							"REPLACED_WITH_SECRET_KEY", secretKey));
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, "I/O error reading user data", e);
 			System.exit(1);
