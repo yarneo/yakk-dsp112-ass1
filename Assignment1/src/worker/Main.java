@@ -14,6 +14,8 @@ import javax.imageio.ImageIO;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.PropertiesCredentials;
 import com.amazonaws.services.s3.AmazonS3;
@@ -140,6 +142,12 @@ public class Main {
 		} catch (InterruptedException ir) {
 			logger.log(Level.SEVERE, "Worker interrupted.", ir);
 			System.exit(2);
+		} catch (AmazonServiceException ase) {
+			logger.log(Level.SEVERE, "Amazon service error", ase);
+			System.exit(3);
+		} catch (AmazonClientException ace) {
+			logger.log(Level.SEVERE, "Amazon client error", ace);
+			System.exit(4);
 		}
 	}
 }
