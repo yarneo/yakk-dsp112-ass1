@@ -195,6 +195,7 @@ public class Main {
 				RunInstancesRequest request2 = new RunInstancesRequest("ami-cef405a7", 1, 1);
 				request2.setInstanceType(InstanceType.T1Micro.toString());			
 				request2.setUserData(getManagerUserData());
+				request2.setKeyName("MyKeyPair");
 			
 				List<Instance> instances = ec2.runInstances(request2).getReservation().getInstances();
 				for(Instance instance : instances) {
