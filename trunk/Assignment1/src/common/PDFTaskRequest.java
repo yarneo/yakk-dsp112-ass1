@@ -16,8 +16,12 @@ public class PDFTaskRequest {
 	{				
 		Matcher m = p.matcher(msg.getBody());
 		
-		uuid = m.group(1);
-		url = new URL(m.group(2));		
+		if (m.matches()) {
+			uuid = m.group(1);
+			url = new URL(m.group(2));	
+		} else {
+			throw new IllegalStateException();
+		}
 	}
 	
 	public String getUUID()
