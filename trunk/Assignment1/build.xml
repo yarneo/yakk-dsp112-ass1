@@ -22,13 +22,13 @@
 		
 	<target name="run_worker" depends="compile">
 		<java classname="worker.Main" classpathref="run.path.id">
-			<sysproperty name="java.util.logging.config.file" value="${src.dir}/worker/worker_logging.properties" />
+			<sysproperty key="java.util.logging.config.file" value="${src.dir}/worker/worker_logging.properties" />
 		</java>
 	</target>
 	
 	<target name="run_manager" depends="compile">
 		<java classname="manager.Main" classpathref="run.path.id">
-			<sysproperty name="java.util.logging.config.file" value="${src.dir}/manager/manager_logging.properties" />
+			<sysproperty key="java.util.logging.config.file" value="${src.dir}/manager/manager_logging.properties" />
 		</java>
 	</target>
 	
