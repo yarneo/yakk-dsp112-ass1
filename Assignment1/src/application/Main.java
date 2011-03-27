@@ -378,9 +378,16 @@ public class Main {
 			List<ThumbPDF> outInfo = downloadFromS3(bucketInfo);
 			numOfPages = (int)(Math.ceil((double)outInfo.size()/numPF));
 
-			for(int i=0;i<=numOfPages;i++) {
-				List<ThumbPDF> tempList = outInfo.subList(((numPF)*i), Math.min(((numPF*(i+1))-1),outInfo.size()-1));				
-				createHTMLFile(args[1],tempList,i+1,numPF,numOfPages);
+			for(int i=0;i<numOfPages;i++) {
+				int tempMin = numPF;
+				if(i == numOfPages-1) {
+					tempMin = Math.min(((numPF*(i+1))),outInfo.size());
+				} 
+				List<ThumbPDF> tempList = outInfo.subList(((numPF)*i),tempMin );
+				tempMin = outInfo.size()%numPF;
+				if(tempMin == 0)
+					tempMin = numPF;
+				createHTMLFile(args[1],tempList,i+1,tempMin,numOfPages);
 			}
 		}
 
