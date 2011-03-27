@@ -354,7 +354,7 @@ public class Main {
 					for(AppNums app : appNums) {
 						if(app.getKey().equals(RparsedMsg)) {
 							app.setCurrentNum(app.getCurrentNum()+1);
-							app.links.add(new StringPair(LparsedMsg,MparsedMsg));
+							app.links.add(new StringPair(MparsedMsg, LparsedMsg));
 							break;
 						}
 					}
@@ -392,7 +392,7 @@ public class Main {
 			FileWriter fstream = new FileWriter(file);
 			BufferedWriter out = new BufferedWriter(fstream);
 			for(StringPair link : links) {
-				out.write(link.getStringA() + "," + link.getStringB() + "/n");
+				out.write(link.getStringA() + "," + link.getStringB() + "\n");
 			}			
 			out.close();
 		}catch (Exception e){//Catch exception if any
@@ -514,6 +514,7 @@ public class Main {
 						/* send message to the user queue with the place of the file
 						 * Message Format to User: <AppKey=Application_UUID,Bucket=Bucket,Key=uniqueName> */
 						createAndSendToSQS2(app.getKey(),uniqueName);
+						app.setNumberOfPDFs(-1);
 					}
 				}
 			}
