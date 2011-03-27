@@ -171,8 +171,25 @@ public class Main {
 		List<Reservation> reservations = result.getReservations();
 
 		List<String> instanceID = new ArrayList<String>();
-
-		if(reservations.isEmpty()) {//no manager node
+		
+		boolean createNewInstance = true;
+		
+		if (!reservations.isEmpty()) { 			
+			for (Reservation r : reservations) {
+				for (Instance i : r.getInstances()) {
+					if (i.getState().getName().equals("pending") ||
+						i.getState().getName().equals("running")) {
+						createNewInstance = false;
+						break;
+					}
+				}
+				if (!createNewInstance) {
+					break;
+				}
+			}
+		}		
+		
+		if (createNewInstance) { // no manager node
 			try {
 				// ubuntu-maverick-10.10-amd64-server-20101225 (ami-cef405a7)
 				RunInstancesRequest request2 = new RunInstancesRequest("ami-cef405a7", 1, 1);
@@ -197,7 +214,7 @@ public class Main {
 				System.out.println("Request ID: " + ase.getRequestId());
 			}
 		}
-		else {
+		else {			
 			System.out.println("instances!");
 			for (Reservation reservation : reservations) {
 				List<Instance> instances = reservation.getInstances();
