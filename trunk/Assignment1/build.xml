@@ -6,6 +6,7 @@
 	
 	<path id="lib.path.id">
 		<fileset dir="${lib.dir}" />
+		<fileset dir="/usr/share/java" />
 	</path>
 	<path id="run.path.id">
 		<path refid="lib.path.id" />
