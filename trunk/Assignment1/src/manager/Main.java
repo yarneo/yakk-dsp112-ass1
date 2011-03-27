@@ -181,6 +181,9 @@ public class Main {
 					+ "such as not being able to access the network.");
 			System.out.println("Error Message: " + ace.getMessage());
 		}
+		
+		logger.log(Level.INFO, "Received " + bucketLink.size() + " links from queue.");
+		
 		return bucketLink;
 	}
 
@@ -193,6 +196,7 @@ public class Main {
 				SendMessageRequest msg = new SendMessageRequest(myQueueUrl, outMsg);
 				sqs.sendMessage(msg);
 			}
+			logger.log(Level.INFO, "Sent " + bucketLinks.size() + " links to queue.");
 		}
 		catch (AmazonServiceException ase) {
 			logger.log(Level.SEVERE, "Amazon service error", ase);
@@ -473,7 +477,7 @@ public class Main {
 				 * then we will need to check for them, so hasMessages=true */
 				hasMessages = true;
 				numOfMsgs = bucketLinks.size();
-				numOfWorkers = (int)(Math.ceil(numOfMsgs/100));
+				numOfWorkers = (int)(Math.ceil((double)numOfMsgs/100));
 				/* I create a worker node for every 100 messages in the queue
 				 * Computer type: Micro, Image: ami-76f0061f */
 				instanceIDs = createWorkerNodes(numOfWorkers);
