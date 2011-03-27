@@ -285,10 +285,12 @@ public class Main {
 			ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(myQueueUrl);
 			List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
 			if(messages.size() == 0) {//queue is empty
-				TerminateInstancesRequest terminateInstancesRequest = new TerminateInstancesRequest(instanceIDs);
-				ec2.terminateInstances(terminateInstancesRequest);
-				hasMessages = false;
-				hasNodes = false;
+				if (!instanceIDs.isEmpty()) {
+					TerminateInstancesRequest terminateInstancesRequest = new TerminateInstancesRequest(instanceIDs);
+					ec2.terminateInstances(terminateInstancesRequest);
+					hasMessages = false;
+					hasNodes = false;	
+				}				
 			}
 			else {
 				Thread.sleep(1000);
@@ -479,15 +481,16 @@ public class Main {
 				 * after they finished their job */
 				hasNodes = true;
 			}
-			if(hasNodes)
+			if(hasNodes) {
 				/* if there are workers still alive I delete them if the link queue is empty
 				 * because that means that they have processed all of the messages I have gave them */
-				checkSQSAndDeleteNodes(instanceIDs);
+				//checkSQSAndDeleteNodes(instanceIDs);
+			}
 			/*TODO: weak point, do I wait till all messages are processed by the apps to obtain a result,
 			 *      or do I meanwhile add more jobs from new applications. If I carry bringing more jobs
 			 *      all the time, there can be a case that the messages being processes queue will never be
 			 *      empty, so we will never obtain a result. */
-			if(!hasMessages) {
+			if(hasMessages) {
 				/* receive message from the SQS QueueThumbnails of PDF link, Thumbnail link and UUID of certain application
 				 * Message Format from Worker: <pdf_link,s3_link,app_key(uuid of app)> 
 				 * For each messages returned we update the array of appNums objects with incrementing by 1 the done jobs for that
