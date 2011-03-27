@@ -340,8 +340,8 @@ public class Main {
 			out.write("<html><head><title>Yarden and Koby's Lovely HTML File</title></head>" +
 					"<body bgcolor=\"red\"><h1>" +
 					"Page " + pageNumber +
-					" (" + ((pageNumber-1)*(itemsNumber)) + " - " + ((pageNumber*itemsNumber)-1) +
-			"</h1></br>");
+					" (" + ((pageNumber)*(itemsNumber)) + " - " + ((pageNumber*itemsNumber)) +
+			")</h1></br>");
 			for(int i=1;i<=numOfPages;i++) {
 				out.write("<a href=\"outPrefix" + i + ".html\">Page " + i + "</a>&nbsp;&nbsp;");
 			}
