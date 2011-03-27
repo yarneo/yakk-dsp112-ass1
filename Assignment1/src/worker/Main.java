@@ -83,7 +83,8 @@ public class Main {
 					Thread.sleep(WORKER_QUEUE_POLLING_INTERVAL);
 				} else {
 					for (Message msg : messages) {
-						try {
+						try {							
+							logger.log(Level.INFO, "Worker received message: " +  msg.getBody());
 							PDFTaskRequest taskRequest = new PDFTaskRequest(msg);
 							
 							PDDocument pdf = PDDocument.load(taskRequest.getPDFURL());
