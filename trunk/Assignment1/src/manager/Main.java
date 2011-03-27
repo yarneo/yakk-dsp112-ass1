@@ -262,6 +262,7 @@ public class Main {
 			RunInstancesRequest request = new RunInstancesRequest("ami-cef405a7", numOfWorkers, numOfWorkers);
 			request.setInstanceType(InstanceType.T1Micro.toString());
 			request.setUserData(workerUserData);
+			request.setKeyName("MyKeyPair");
 			List<Instance> instances = ec2.runInstances(request).getReservation().getInstances();			
 			for(Instance instance : instances) {
 				logger.log(Level.INFO, "Created worker instance ", instance.getInstanceId());
