@@ -1,50 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<project xmlns:ivy="antlib:org.apache.ivy.ant" name="assignment1" default="default">
+<project name="assignment1" default="default">
 	<property name="src.dir" value="src" />	
 	<property name="lib.dir" value="lib" />
+	<property name="build.dir" value="build" />
 	
 	<path id="lib.path.id">
 		<fileset dir="${lib.dir}" />
 		<fileset dir="/usr/share/java" />
 	</path>
-	<path id="run.path.id">
-		<path refid="lib.path.id" />
-		<path location="${src.dir}" />
-	</path>
 	
-	<target name="retrieve">
-		<ivy:retrieve />
+	<target name="compile">
+		<mkdir dir="${build.dir}" />
+		<copy todir="${build.dir}">
+			<fileset dir="${src.dir}" excludes="**/*.java" />
+		</copy>
+		<javac includeAntRuntime="no" srcdir="${src.dir}" destdir="${build.dir}" classpathref="lib.path.id" />
 	</target>
 	
-	<target name="compile" depends="retrieve">				
-		<javac srcdir="${src.dir}" classpathref="lib.path.id" />
-	</target>
-		
-	<target name="run_worker" depends="compile">
-		<java classname="worker.Main" classpathref="run.path.id">
-			<sysproperty key="java.util.logging.config.file" value="${src.dir}/worker/worker_logging.properties" />
-		</java>
-	</target>
-	
-	<target name="run_manager" depends="compile">
-		<java classname="manager.Main" classpathref="run.path.id">
-			<sysproperty key="java.util.logging.config.file" value="${src.dir}/manager/manager_logging.properties" />
-		</java>
-	</target>
-	
-	<target name="app_jar" depends="compile">
-		<pathconvert property="jar.classpath" pathsep=" ">
-		    <path refid="lib.path.id" />		    
-		</pathconvert>
-		
-		<jar destfile="pdfextraction.jar" basedir="${src.dir}">
+	<target name="worker_jar">
+		<jar destfile="worker.jar" filesetmanifest="mergewithoutmain">
 			<manifest>
-				<attribute name="Main-Class" value="application.Main" />
-				<attribute name="Class-Path" value="${jar.classpath}" />
-			</manifest>			
+				<attribute name="Main-Class" value="worker.Main" />
+				<attribute name="Class-Path" value="." />
+			</manifest>
+			<fileset dir="${build.dir}" />
+			<zipgroupfileset dir="${lib.dir}" includes="*.jar" />
 		</jar>
 	</target>
 	
+	<target name="manager_jar">
+		<jar destfile="manager.jar" filesetmanifest="mergewithoutmain">
+			<manifest>
+				<attribute name="Main-Class" value="manager.Main" />
+				<attribute name="Class-Path" value="." />
+			</manifest>
+			<fileset dir="${build.dir}" />
+			<zipgroupfileset dir="${lib.dir}" includes="*.jar" />
+		</jar>
+	</target>
+	
+	<target name="application_jar">
+		<jar destfile="pdfextraction.jar" filesetmanifest="mergewithoutmain">
+			<manifest>
+				<attribute name="Main-Class" value="application.Main" />
+				<attribute name="Class-Path" value="." />
+			</manifest>
+			<fileset dir="${build.dir}" />
+			<zipgroupfileset dir="${lib.dir}" includes="*.jar" />
+		</jar>
+	</target>
+	
+	<target name="run_worker" depends="manager_jar">
+		<java jar="worker.jar">
+			<sysproperty key="java.util.logging.config.file" value="${src.dir}/worker/worker_logging.properties" />			
+		</java>
+	</target>
+	
+	<target name="run_manager" depends="manager_jar">
+		<java jar="manager.jar">
+			<sysproperty key="java.util.logging.config.file" value="${src.dir}/manager/manager_logging.properties" />			
+		</java>
+	</target>
+
     <target name="default" depends="compile" />	
 </project>

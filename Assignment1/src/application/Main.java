@@ -269,7 +269,7 @@ public class Main {
 				List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
 				if(messages.size() == 0) {//queue is empty
 					System.out.println("Queue is empty");
-					Thread.sleep(1000);
+					Thread.sleep(30 * 1000);
 				}
 				else {
 					for (Message message : messages) {
@@ -284,7 +284,7 @@ public class Main {
 						break;
 					else {
 						System.out.println("Queue doesnt have message you want");
-						Thread.sleep(1000);
+						Thread.sleep(30 * 1000);
 					}
 				}
 			}
