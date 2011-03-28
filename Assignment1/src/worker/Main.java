@@ -41,6 +41,8 @@ public class Main {
 	private static final long WORKER_QUEUE_POLLING_INTERVAL = 30 * 1000; // 30 seconds
 	/** The prefix used for temporary file names. */
 	private static final String WORKER_TEMP_FILE_NAME_PREFIX = "wrk";
+	/** The visibility timeout for worker messages, in seconds. */
+	private static final int WORKER_VISIBILITY_TIMEOUT = 180;
 
 	/**
 	 * @param args
@@ -77,7 +79,9 @@ public class Main {
 			String responseQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
 			
 			while(true) {
-				ReceiveMessageRequest rmr = new ReceiveMessageRequest(requestQueueUrl);
+				ReceiveMessageRequest rmr = 
+					new ReceiveMessageRequest(requestQueueUrl)
+						.withVisibilityTimeout(WORKER_VISIBILITY_TIMEOUT);
 				
 				List<Message> messages = sqs.receiveMessage(rmr).getMessages();
 				if (messages.size() == 0) {
