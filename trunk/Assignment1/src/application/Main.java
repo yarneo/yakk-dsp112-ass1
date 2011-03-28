@@ -336,25 +336,33 @@ public class Main {
 		try   {
 			// Create file 
 			FileWriter fstream = new FileWriter(filename + ".html");
-			BufferedWriter out = new BufferedWriter(fstream);
-			int endNum = (pageNumber*maxItemsNumber)-1;
-			if(itemsNumber != maxItemsNumber)
-				endNum = endNum - (maxItemsNumber - itemsNumber);
-			out.write("<html><head><title>Yarden and Koby's Lovely HTML File</title></head>" +
-					"<body bgcolor=\"red\"><h1>" +
-					"Page " + pageNumber +
-					" (" + ((pageNumber-1)*(maxItemsNumber)) + " - " + endNum +
-			")</h1></br>");
+			BufferedWriter out = new BufferedWriter(fstream);			
+			int first = (pageNumber-1)*maxItemsNumber;
+			int last = first + outInfo.size() - 1;
+			out.write(
+					"<!DOCTYPE html>\n" +
+					"<html>\n" +
+					"<head>\n" +
+					"\t<title>Yarden and Koby's Lovely HTML File</title>\n" +					
+					"</head>\n" +
+					"<body>\n" +
+					"\t<h1>\n" +
+					"\t\tPage " + pageNumber + " (" + first + " - " + last + ")\n" +
+					"\t</h1>\n" +
+					"\t<br/>\n"
+					);			
 			for(int i=1;i<=numOfPages;i++) {
-				out.write("<a href=\"outPrefix" + i + ".html\">Page " + i + "</a>&nbsp;&nbsp;");
+				out.write("\t<a href=\"" + outPrefix + i + ".html\">Page " + i + "</a>&nbsp;&nbsp;\n");
 			}
-			out.write("</br></br>");
+			out.write("\t<br/><br/>\n");
 			for(int i=0;i<itemsNumber;i++) {
 				ThumbPDF tempTP = outInfo.get(i);
-				out.write("<a href=\">" + tempTP.getPDF() + "\"><img src=\"" +
-						tempTP.getThumbnail() + "\"></img></a>");
+				out.write("\t<a href=\">" + tempTP.getPDF() + "\"><img src=\"" +
+						tempTP.getThumbnail() + "\"/></a>\n");
 			}
-			out.write("</body></html>");
+			out.write(
+				"</body>\n" + 
+				"</html>\n");
 			//Close the output stream
 			out.close();
 		}catch (Exception e){//Catch exception if any
