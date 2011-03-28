@@ -22,6 +22,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.CannedAccessControlList;
 import com.amazonaws.services.s3.model.CreateBucketRequest;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
@@ -37,7 +38,7 @@ import common.PDFTaskResponse;
 public class Main {
 	private static Logger logger = Logger.getLogger("worker.Main");
 	/** The interval, in milliseconds, between queue polling attempts by the Worker. */
-	private static final long WORKER_QUEUE_POLLING_INTERVAL = 5000;
+	private static final long WORKER_QUEUE_POLLING_INTERVAL = 30 * 1000; // 30 seconds
 	/** The prefix used for temporary file names. */
 	private static final String WORKER_TEMP_FILE_NAME_PREFIX = "wrk";
 
@@ -82,6 +83,7 @@ public class Main {
 				if (messages.size() == 0) {
 					Thread.sleep(WORKER_QUEUE_POLLING_INTERVAL);
 				} else {
+					logger.log(Level.INFO, "Worker received " + messages.size() + " messages.");
 					for (Message msg : messages) {
 						try {							
 							logger.log(Level.INFO, "Worker received message: " +  msg.getBody());
@@ -106,21 +108,23 @@ public class Main {
 							
 							ImageIO.write(bimage, "png", imageFile);
 							
-							String imageKey = UUID.randomUUID().toString() + ".png";
+							String imageKey = "thumbnail-" + UUID.randomUUID().toString() + ".png";
 							
-							s3.putObject(
+							logger.log(Level.INFO, "Uploading " + imageKey + " to S3");
+														
+							PutObjectRequest por = new PutObjectRequest(
 									Consts.WORKER_THUMBNAIL_BUCKET_NAME,
 									imageKey,
-									imageFile);
+									imageFile).withCannedAcl(CannedAccessControlList.PublicRead);
+							s3.putObject(por);					
 							
 							imageFile.delete();
 							
 							PDFTaskResponse response = new PDFTaskResponse(
 									taskRequest.getPDFURL(),
 									new URL(
-											"http://" + 
-											Consts.WORKER_THUMBNAIL_BUCKET_NAME + 
-											".s3.amazonaws.com/" +
+											"http://s3.amazonaws.com/" +
+											Consts.WORKER_THUMBNAIL_BUCKET_NAME + "/" +
 											imageKey),
 									taskRequest.getUUID());
 							
@@ -128,6 +132,8 @@ public class Main {
 									responseQueueUrl,
 									response.toString());
 							sqs.sendMessage(smr);
+							
+							logger.log(Level.INFO, "Worker done with " + taskRequest.getPDFURL());
 
 							DeleteMessageRequest dmr = new DeleteMessageRequest(requestQueueUrl, msg.getReceiptHandle());
 							sqs.deleteMessage(dmr);			

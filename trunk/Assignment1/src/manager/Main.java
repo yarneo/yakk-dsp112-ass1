@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -81,7 +82,7 @@ public class Main {
 				List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
 				if((messages.size() == 0) && (!hasNodes)) {//queue is empty
 					logger.log(Level.INFO, "Queue is empty");
-					Thread.sleep(1000);
+					Thread.sleep(30 * 1000);
 				}
 				else if(messages.size() != 0){
 					for (Message message : messages) {	
@@ -116,6 +117,7 @@ public class Main {
 				else {
 					throw badmsg;
 				}
+				logger.log(Level.INFO, "Processing: " + bucketInfo[0] + " " + bucketInfo[1]);
 				retFileInfo.add(new StringPair(bucketInfo[0],bucketInfo[1]));
 			}
 
@@ -150,7 +152,11 @@ public class Main {
 			for(StringPair bucketInfo : msgsInfo) {
 				i=0;
 				//s3.createBucket(bucketInfo.getBucket());
-				logger.log(Level.INFO, "Download an object from S3");				
+				logger.log(
+						Level.INFO,
+						"Downloading from S3: Bucket = " + 
+							bucketInfo.getStringA() + 
+							", Key = " + bucketInfo.getStringB()); 
 				S3Object object = s3.getObject(new GetObjectRequest(bucketInfo.getStringA(), bucketInfo.getStringB()));
 				InputStream input = object.getObjectContent();
 				BufferedReader reader = new BufferedReader(new InputStreamReader(input));
@@ -195,6 +201,7 @@ public class Main {
 				String outMsg = "App=" + bucketLink.getStringA() + ",Link=" + bucketLink.getStringB();
 				SendMessageRequest msg = new SendMessageRequest(myQueueUrl, outMsg);
 				sqs.sendMessage(msg);
+				logger.log(Level.INFO, "Sent message: " + outMsg);
 			}
 			logger.log(Level.INFO, "Sent " + bucketLinks.size() + " links to queue.");
 		}
@@ -282,22 +289,13 @@ public class Main {
 		return instanceID;
 	}
 
-	public static void checkSQSAndDeleteNodes(List<String> instanceIDs) throws IOException, Exception {
+	public static void deleteWorkerNodes(List<String> instanceIDs) throws IOException, Exception {
 		try {
-			CreateQueueRequest createQueueRequest = new CreateQueueRequest(QueueLinks);
-			String myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
-			ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(myQueueUrl);
-			List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
-			if(messages.size() == 0) {//queue is empty
-				if (!instanceIDs.isEmpty()) {
-					TerminateInstancesRequest terminateInstancesRequest = new TerminateInstancesRequest(instanceIDs);
-					ec2.terminateInstances(terminateInstancesRequest);
-					hasMessages = false;
-					hasNodes = false;	
-				}				
-			}
-			else {
-				Thread.sleep(1000);
+			if (!instanceIDs.isEmpty()) {
+				TerminateInstancesRequest terminateInstancesRequest = new TerminateInstancesRequest(instanceIDs);
+				ec2.terminateInstances(terminateInstancesRequest);
+				hasMessages = false;
+				hasNodes = false;	
 			}
 		}
 		catch (AmazonServiceException ase) {
@@ -315,8 +313,6 @@ public class Main {
 					"a serious internal problem while trying to communicate with SQS, such as not " +
 			"being able to access the network.");
 			System.out.println("Error Message: " + ace.getMessage());
-		} catch (InterruptedException e) {
-			e.printStackTrace();
 		}
 	}
 
@@ -332,11 +328,11 @@ public class Main {
 			ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(myQueueUrl);
 			List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
 			if((messages.size() == 0)) {//queue is empty
-				logger.log(Level.INFO, "Queue is empty");
-				System.out.println("Queue is empty");
-				Thread.sleep(1000);
+				logger.log(Level.INFO, "Queue is empty");				
+				Thread.sleep(30 * 1000);
 			}
 			else if(messages.size() != 0){
+				logger.log(Level.INFO, "Received " + messages.size() + " thumbnails from workers.");
 				for (Message message : messages) {	
 					msgs.add(message.getBody());
 					String messageRecieptHandle = message.getReceiptHandle();
@@ -404,6 +400,7 @@ public class Main {
 	public static void uploadFileToS3(File file,String uniqueName) throws IOException {
 		try {
 			System.out.println("Uploading a new object to S3 from a file\n");
+			logger.log(Level.INFO, "Uploading to S3: Bucket = " + Bucket + ", Key = " + uniqueName);
 			s3.putObject(new PutObjectRequest(Bucket, uniqueName, file));
 		}
 		catch (AmazonServiceException ase) {
@@ -479,21 +476,12 @@ public class Main {
 				numOfMsgs = bucketLinks.size();
 				numOfWorkers = (int)(Math.ceil((double)numOfMsgs/100));
 				/* I create a worker node for every 100 messages in the queue
-				 * Computer type: Micro, Image: ami-76f0061f */
+				 * Computer type: Micro */
 				instanceIDs = createWorkerNodes(numOfWorkers);
 				/* This means we now have worker nodes, so we will need to check if they need to be deleted
 				 * after they finished their job */
 				hasNodes = true;
 			}
-			if(hasNodes) {
-				/* if there are workers still alive I delete them if the link queue is empty
-				 * because that means that they have processed all of the messages I have gave them */
-				//checkSQSAndDeleteNodes(instanceIDs);
-			}
-			/*TODO: weak point, do I wait till all messages are processed by the apps to obtain a result,
-			 *      or do I meanwhile add more jobs from new applications. If I carry bringing more jobs
-			 *      all the time, there can be a case that the messages being processes queue will never be
-			 *      empty, so we will never obtain a result. */
 			if(hasMessages) {
 				/* receive message from the SQS QueueThumbnails of PDF link, Thumbnail link and UUID of certain application
 				 * Message Format from Worker: <pdf_link,s3_link,app_key(uuid of app)> 
@@ -502,7 +490,8 @@ public class Main {
 				receiveFromSQS2();
 				/* For each application in the appNums array that its done jobs is equal to the number of PDFS it had to process
 				 * we do the following. */
-				for(AppNums app : appNums) {
+				for(Iterator<AppNums> iter = appNums.iterator(); iter.hasNext();) {
+					AppNums app = iter.next();
 					if(app.getNumberOfPDFs() == app.getCurrentNum()) {
 						String uniqueName = UUID.randomUUID().toString();
 						/* create output file of all pdfs and thumbnails of certain user
@@ -514,8 +503,13 @@ public class Main {
 						/* send message to the user queue with the place of the file
 						 * Message Format to User: <AppKey=Application_UUID,Bucket=Bucket,Key=uniqueName> */
 						createAndSendToSQS2(app.getKey(),uniqueName);
-						app.setNumberOfPDFs(-1);
-					}
+						iter.remove();
+					}					
+				}
+				if (appNums.isEmpty()) {
+					logger.log(Level.INFO, "Terminating worker nodes");
+					deleteWorkerNodes(instanceIDs);
+					hasNodes = false;
 				}
 			}
 		}
