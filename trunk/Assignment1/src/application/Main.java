@@ -331,16 +331,19 @@ public class Main {
 
 
 	public static void createHTMLFile(String outPrefix, List<ThumbPDF> outInfo,int pageNumber,
-			int itemsNumber, int numOfPages) throws IOException {
+			int itemsNumber,int maxItemsNumber, int numOfPages) throws IOException {
 		String filename = outPrefix + pageNumber;
 		try   {
 			// Create file 
 			FileWriter fstream = new FileWriter(filename + ".html");
 			BufferedWriter out = new BufferedWriter(fstream);
+			int endNum = (pageNumber*maxItemsNumber)-1;
+			if(itemsNumber != maxItemsNumber)
+				endNum = endNum - (maxItemsNumber - itemsNumber);
 			out.write("<html><head><title>Yarden and Koby's Lovely HTML File</title></head>" +
 					"<body bgcolor=\"red\"><h1>" +
 					"Page " + pageNumber +
-					" (" + ((pageNumber)*(itemsNumber)) + " - " + ((pageNumber*itemsNumber)) +
+					" (" + ((pageNumber-1)*(maxItemsNumber)) + " - " + endNum +
 			")</h1></br>");
 			for(int i=1;i<=numOfPages;i++) {
 				out.write("<a href=\"outPrefix" + i + ".html\">Page " + i + "</a>&nbsp;&nbsp;");
@@ -387,7 +390,7 @@ public class Main {
 				tempMin = outInfo.size()%numPF;
 				if(tempMin == 0)
 					tempMin = numPF;
-				createHTMLFile(args[1],tempList,i+1,tempMin,numOfPages);
+				createHTMLFile(args[1],tempList,i+1,tempMin,numPF,numOfPages);
 			}
 		}
 
