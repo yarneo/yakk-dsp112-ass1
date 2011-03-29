@@ -331,7 +331,7 @@ public class Main {
 
 
 	public static void createHTMLFile(String outPrefix, List<ThumbPDF> outInfo,int pageNumber,
-			int itemsNumber,int maxItemsNumber, int numOfPages) throws IOException {
+			int maxItemsNumber, int numOfPages) throws IOException {
 		String filename = outPrefix + pageNumber;
 		try   {
 			// Create file 
@@ -355,9 +355,9 @@ public class Main {
 				out.write("\t<a href=\"" + outPrefix + i + ".html\">Page " + i + "</a>&nbsp;&nbsp;\n");
 			}
 			out.write("\t<br/><br/>\n");
-			for(int i=0;i<itemsNumber;i++) {
+			for(int i=0;i<outInfo.size();i++) {
 				ThumbPDF tempTP = outInfo.get(i);
-				out.write("\t<a href=\">" + tempTP.getPDF() + "\"><img src=\"" +
+				out.write("\t<a href=\"" + tempTP.getPDF() + "\"><img src=\"" +
 						tempTP.getThumbnail() + "\"/></a>\n");
 			}
 			out.write(
@@ -390,15 +390,12 @@ public class Main {
 			numOfPages = (int)(Math.ceil((double)outInfo.size()/numPF));
 
 			for(int i=0;i<numOfPages;i++) {
-				int tempMin = numPF;
+				int tempMin = numPF*(i+1);
 				if(i == numOfPages-1) {
 					tempMin = Math.min(((numPF*(i+1))),outInfo.size());
 				} 
 				List<ThumbPDF> tempList = outInfo.subList(((numPF)*i),tempMin );
-				tempMin = outInfo.size()%numPF;
-				if(tempMin == 0)
-					tempMin = numPF;
-				createHTMLFile(args[1],tempList,i+1,tempMin,numPF,numOfPages);
+				createHTMLFile(args[1],tempList,i+1,numPF,numOfPages);
 			}
 		}
 
