@@ -343,25 +343,86 @@ public class Main {
 					"<!DOCTYPE html>\n" +
 					"<html>\n" +
 					"<head>\n" +
-					"\t<title>Yarden and Koby's Lovely HTML File</title>\n" +					
+					"\t<title>Yarden and Koby's Lovely HTML File</title>\n" +
+					"<style>\n" +
+					"<style type=\"text/css\">\n" +
+					"table.imagetable {\n" +
+					"font-family: verdana,arial,sans-serif;\n" +
+					"font-size:11px;\n" +
+					"color:#333333;\n" +
+					"border-width: 1px;\n" +
+					"border-color: #999999;\n" +
+					"border-collapse: collapse;\n" +
+					"}\n" +
+					"table.imagetable th {\n" +
+					"background:#87CEEB;\n" +
+					"border-width: 1px;\n" +
+					"padding: 8px;\n" +
+					"border-style: solid;\n" +
+					"border-color: #999999;\n" +
+					"}\n" +
+					"table.imagetable td {\n" +
+					"background:#dcddc0;\n" +
+					"border-width: 1px;\n" +
+					"padding: 8px;\n" +
+					"border-style: solid;\n" +
+					"border-color: #999999;\n" +
+					"}\n" +
+					"h1 {font-family:Verdana;\n" +
+					"font-size:25px;\n" +
+					"}\n" +
+					"a {font-family:Verdana; font-size:large}\n" +
+					"a:link {\n" +
+					"color:#333333;\n" +
+					"font-size:13px;\n" +
+					"}\n" + 
+					"a:visited {\n" +
+					"color:#333333;\n" +
+					"font-size:13px;\n" +
+					"}\n" + 
+					"a:hover {\n" +
+					"text-decoration:none;\n" +
+					"color:#333333;\n" +
+					"font-size:13px;\n" +
+					"}\n" + 
+					"font-weight:none;}\n" +
+					"</style>\n" +
 					"</head>\n" +
-					"<body>\n" +
-					"\t<h1>\n" +
+					"<body bgcolor=\"#CD5C5C\">\n" +
+					"\t<h1><div align=\"center\">\n" +
 					"\t\tPage " + pageNumber + " (" + first + " - " + last + ")\n" +
-					"\t</h1>\n" +
-					"\t<br/>\n"
+					"\t</div></h1>\n" +
+					"\t<br/>\n" +
+					"<table width=100% bgcolor=#87CEEB align =center cellspacing=2 cellpadding=2><tr>\n"
 					);			
 			for(int i=1;i<=numOfPages;i++) {
-				out.write("\t<a href=\"" + outPrefix + i + ".html\">Page " + i + "</a>&nbsp;&nbsp;\n");
+				out.write("\t<td><a href=\"" + outPrefix + i + ".html\">Page " + i + "</a></td>\n");
 			}
-			out.write("\t<br/><br/>\n");
+			out.write("\t</tr></table><br/><br/>\n" +
+					"<table cellspacing=2 cellpadding=2 class=imagetable align=center>" +
+					"<tr><th colspan=3>Thumbnails of PDFs</th></tr>"
+			);
+			int emptySlotsLeftInRow = 0;
 			for(int i=0;i<outInfo.size();i++) {
 				ThumbPDF tempTP = outInfo.get(i);
-				out.write("\t<a href=\"" + tempTP.getPDF() + "\"><img src=\"" +
-						tempTP.getThumbnail() + "\"/></a>\n");
+				if(i%3==0) {
+					out.write("<tr>");
+				}
+				out.write("\t<td><a href=\"" + tempTP.getPDF() + "\"><img height=200 width=150 src=\"" +
+						tempTP.getThumbnail() + "\"/></a></td>\n");
+				if((emptySlotsLeftInRow = i%3) == 2 ) {
+					out.write("</tr>");
+				}
+			}
+			if(emptySlotsLeftInRow < 2) {
+				while(emptySlotsLeftInRow != 2) {
+					out.write("<td></td>");
+					emptySlotsLeftInRow++;
+				}
+				out.write("</tr>");
 			}
 			out.write(
-				"</body>\n" + 
+				"</table></body>\n" + 
 				"</html>\n");
 			//Close the output stream
 			out.close();
