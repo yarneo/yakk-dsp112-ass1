@@ -103,7 +103,7 @@ public class Main {
 				String[] temp = line.split(",");
 				outInfo.add(new ThumbPDF(temp[0],temp[1]));
 			}
-
+			s3.deleteObject(bucketInfo[0], bucketInfo[1]);
 
 		}
 		catch (AmazonServiceException ase) {

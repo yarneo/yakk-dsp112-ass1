@@ -167,6 +167,7 @@ public class Main {
 					i++;
 				}
 				appNums.add(new AppNums(bucketInfo.getStringB(),i));
+				s3.deleteObject(bucketInfo.getStringA(), bucketInfo.getStringB());
 			}
 
 
