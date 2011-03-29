@@ -1,9 +1,17 @@
 package worker;
 
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.net.URL;
+import java.net.URLConnection;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -11,8 +19,6 @@ import java.util.logging.Logger;
 
 import javax.imageio.ImageIO;
 
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -30,6 +36,8 @@ import com.amazonaws.services.sqs.model.DeleteMessageRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.sun.pdfview.PDFFile;
+import com.sun.pdfview.PDFPage;
 
 import common.Consts;
 import common.PDFTaskRequest;
@@ -92,25 +100,81 @@ public class Main {
 						try {							
 							logger.log(Level.INFO, "Worker received message: " +  msg.getBody());
 							PDFTaskRequest taskRequest = new PDFTaskRequest(msg);
+
+							URL url1 = taskRequest.getPDFURL();
+
+							byte[] ba1 = new byte[1024];
+							int baLength;
+							FileOutputStream fos1 = new FileOutputStream("download.pdf");
+
+							try {
+								// Contacting the URL
+								System.out.print("Connecting to " + url1.toString() + " ... ");
+								URLConnection urlConn = url1.openConnection();
+
+								// Checking whether the URL contains a PDF
+								if (!urlConn.getContentType().equalsIgnoreCase("application/pdf")) {
+									System.out.println("FAILED.\n[Sorry. This is not a PDF.]");
+								} else {
+
+										// Read the PDF from the URL and save to a local file
+										InputStream is1 = url1.openStream();
+										while ((baLength = is1.read(ba1)) != -1) {
+											fos1.write(ba1, 0, baLength);
+										}
+										fos1.flush();
+										fos1.close();
+										is1.close();
+								}
+									} catch (Exception e) {
+										System.out.println("FAILED.\n[" + e.getMessage() + "]");
+									}
+
+									File file = new File("download.pdf");
+									File imageFile = 
+										File.createTempFile(WORKER_TEMP_FILE_NAME_PREFIX, null);
+
+									RandomAccessFile raf;
+									try {
+										raf = new RandomAccessFile(file, "r");
+
+										FileChannel channel = raf.getChannel();
+										ByteBuffer buf = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+										PDFFile pdffile = new PDFFile(buf);
+										// draw the first page to an image
+										PDFPage page = pdffile.getPage(0);
+
+										//get the width and height for the doc at the default zoom				
+										int width=(int)page.getBBox().getWidth();
+										int height=(int)page.getBBox().getHeight();				
+
+										Rectangle rect = new Rectangle(0,0,width,height);
+										int rotation=page.getRotation();
+										Rectangle rect1=rect;
+										if(rotation==90 || rotation==270)
+											rect1=new Rectangle(0,0,rect.height,rect.width);
+
+										//generate the image
+										BufferedImage img = (BufferedImage)page.getImage(
+												rect.width, rect.height, //width & height
+												rect1, // clip rect
+												null, // null for the ImageObserver
+												true, // fill background with white
+												true  // block until drawing is done
+										);
+										
+										ImageIO.write(img, "png", imageFile);
+									}
+
+									catch (FileNotFoundException e1) {
+										System.err.println(e1.getLocalizedMessage());
+									} catch (IOException e) {
+										System.err.println(e.getLocalizedMessage());
+									}
 							
-							PDDocument pdf = PDDocument.load(taskRequest.getPDFURL());
-							@SuppressWarnings("unchecked")
-							List<PDPage> allPages = 
-								(List<PDPage>)pdf.getDocumentCatalog().getAllPages();
 							
-							PDPage firstPage;
-							if (allPages.size() < 1) {
-								firstPage = new PDPage();								
-							} else {
-								firstPage = allPages.get(0);
-							}
-												
-							BufferedImage bimage = 
-								firstPage.convertToImage(BufferedImage.TYPE_INT_RGB, 36);
-							File imageFile = 
-								File.createTempFile(WORKER_TEMP_FILE_NAME_PREFIX, null);
 							
-							ImageIO.write(bimage, "png", imageFile);
+							
 							
 							String imageKey = "thumbnail-" + UUID.randomUUID().toString() + ".png";
 							
