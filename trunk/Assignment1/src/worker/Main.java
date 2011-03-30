@@ -3,22 +3,27 @@ package worker;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.net.URL;
-import java.net.URLConnection;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.FileChannel.MapMode;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.imageio.ImageIO;
-
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -51,8 +56,121 @@ public class Main {
 	private static final String WORKER_TEMP_FILE_NAME_PREFIX = "wrk";
 	/** The visibility timeout for worker messages, in seconds. */
 	private static final int WORKER_VISIBILITY_TIMEOUT = 180;
+	/** The size of the worker's file buffer. */
+	private static final int WORKER_FILE_BUFFER_SIZE = 4096;
+	/** The timeout for downloading and generating a thumbnail for a single PDF. */
+	private static final int WORKER_PDF_TIMEOUT = 10;
+	/** The unit of timeout for downloading and thumbnailing a single PDF. */
+	private static final TimeUnit WORKER_PDF_TIMEOUT_UNIT = TimeUnit.MINUTES;
+	/** The name of the error thumbnail resource. */
+	private static final String WORKER_ERROR_THUMBNAIL_NAME = "/ErrorThumbnail.png";
+	/** The height of thumbnails. */
+	private static final int WORKER_THUMBNAIL_HEIGHT = 200;
+	/** The width of thumbnails. */
+	private static final int WORKER_THUMBNAIL_WIDTH = 150;
+	/** The maximum number of messages a worker reads from the queue each round. */
+	private static final int WORKER_MAX_MESSAGES = 5;
+	/** Amazon Simple Queue Service. */
+	private static AmazonSQS sqs;
+	/** Amazon Simple Storage Service. */
+	private static AmazonS3 s3;
+	
+	public static String uploadPNG(BufferedImage thumbnail) throws IOException
+	{
+		File imageFile = 
+			File.createTempFile(WORKER_TEMP_FILE_NAME_PREFIX, null);
+
+		ImageIO.write(thumbnail, "png", imageFile);
+
+		String imageKey = "thumbnail-" + UUID.randomUUID().toString() + ".png";
+
+		logger.log(Level.INFO, "Uploading " + imageKey + " to S3");
+
+		PutObjectRequest por = new PutObjectRequest(
+				Consts.WORKER_THUMBNAIL_BUCKET_NAME,
+				imageKey,
+				imageFile).withCannedAcl(CannedAccessControlList.PublicRead);
+		s3.putObject(por);					
+		
+		if (!imageFile.delete()) {
+			logger.log(
+					Level.WARNING,
+					"Error deleting image file " + imageFile.getAbsolutePath());
+		}
+		
+		return imageKey;
+	}
+	
+	private static BufferedImage getPDFPageThumbnail(PDFPage page)
+	{
+		int pageWidth = (int)page.getBBox().getWidth();
+		int pageHeight = (int)page.getBBox().getHeight();
+		
+		Rectangle clippingRectangle;
+		int rotation = page.getRotation();
+		
+		if (rotation == 90 || rotation == 270) {
+			clippingRectangle = new Rectangle(0, 0, pageHeight, pageWidth);
+		} else {
+			clippingRectangle = new Rectangle(0, 0, pageWidth, pageHeight);
+		}
+		
+		int thumbnailWidth = WORKER_THUMBNAIL_WIDTH;
+		int thumbnailHeight = WORKER_THUMBNAIL_HEIGHT;
+		
+		BufferedImage thumbnail = (BufferedImage)page.getImage(
+				thumbnailWidth,
+				thumbnailHeight,
+				clippingRectangle,
+				null,
+				true,
+				true 
+				);
+		
+		return thumbnail;
+	}
+	
+	private static ByteBuffer getPDFData(URL url) throws IOException
+	{
+		logger.log(Level.INFO, "Retrieving PDF from URL " + url.toString());	
+		
+		InputStream pdf = url.openStream();
+		File pdfFile = 
+			File.createTempFile(WORKER_TEMP_FILE_NAME_PREFIX, null);
+		logger.log(
+				Level.INFO, 
+				"Writing PDF to temporary file " + pdfFile.getAbsolutePath());
+		
+		OutputStream os = new FileOutputStream(pdfFile);
+		
+		byte[] fileBuffer = new byte[WORKER_FILE_BUFFER_SIZE];
+		int bytesRead;
+		try {
+			while ((bytesRead = pdf.read(fileBuffer)) != -1) {
+				os.write(fileBuffer, 0, bytesRead);
+			}
+			os.flush();
+			os.close();
+			pdf.close();
+		} catch (IOException ioe) {
+			logger.log(Level.WARNING, "Error retrieving PDF " + url.toString(), ioe);
+			throw ioe;
+		}
+		
+		RandomAccessFile raf = new RandomAccessFile(pdfFile, "r");
+		FileChannel fc = raf.getChannel();
+		ByteBuffer buffer = fc.map(MapMode.READ_ONLY, 0, fc.size());
+		
+		if (!pdfFile.delete()) {
+			pdfFile.deleteOnExit();
+		}
+		
+		return buffer;
+	}
 
 	/**
+	 * Main function of the Worker.
+	 * 
 	 * @param args
 	 */
 	public static void main(String[] args) {		
@@ -61,7 +179,8 @@ public class Main {
 		 * download the PDF file indicated in the message.
 		 * convert the first page of the PDF file into an image file.
 		 * upload the image file to S3.
-		 * put a message in an SQS queue indicating the original URL of the PDF and the S3 url of the new image file
+		 * put a message in an SQS queue indicating the original URL of the PDF and
+		 * the S3 url of the new image file
 		 * remove the PDF message from the SQS queue.
 		 */	
 		
@@ -69,11 +188,14 @@ public class Main {
 			AWSCredentials creds = new PropertiesCredentials(
 					Main.class.getResourceAsStream("/AwsCredentials.properties"));
 			
-			AmazonSQS sqs = new AmazonSQSClient(creds);
-			AmazonS3 s3 = new AmazonS3Client(creds);
+			sqs = new AmazonSQSClient(creds);
+			s3 = new AmazonS3Client(creds);
+			
+			ExecutorService execService = Executors.newCachedThreadPool();
 			
 			if (!s3.doesBucketExist(Consts.WORKER_THUMBNAIL_BUCKET_NAME)) {
-				CreateBucketRequest cbr = new CreateBucketRequest(Consts.WORKER_THUMBNAIL_BUCKET_NAME);
+				CreateBucketRequest cbr = 
+					new CreateBucketRequest(Consts.WORKER_THUMBNAIL_BUCKET_NAME);
 				cbr.setCannedAcl(CannedAccessControlList.PublicRead);
 				s3.createBucket(cbr);				
 			}			
@@ -89,104 +211,70 @@ public class Main {
 			while(true) {
 				ReceiveMessageRequest rmr = 
 					new ReceiveMessageRequest(requestQueueUrl)
-						.withVisibilityTimeout(WORKER_VISIBILITY_TIMEOUT);
+						.withVisibilityTimeout(WORKER_VISIBILITY_TIMEOUT)
+						.withMaxNumberOfMessages(WORKER_MAX_MESSAGES);
 				
 				List<Message> messages = sqs.receiveMessage(rmr).getMessages();
-				if (messages.size() == 0) {
+				if (messages.isEmpty()) {
 					Thread.sleep(WORKER_QUEUE_POLLING_INTERVAL);
 				} else {
 					logger.log(Level.INFO, "Worker received " + messages.size() + " messages.");
 					for (Message msg : messages) {
 						try {							
 							logger.log(Level.INFO, "Worker received message: " +  msg.getBody());
-							PDFTaskRequest taskRequest = new PDFTaskRequest(msg);
-
-							URL url1 = taskRequest.getPDFURL();
-
-							byte[] ba1 = new byte[1024];
-							int baLength;
-							FileOutputStream fos1 = new FileOutputStream("download.pdf");
-
-							try {
-								// Contacting the URL
-								System.out.print("Connecting to " + url1.toString() + " ... ");
-								URLConnection urlConn = url1.openConnection();
-
-								// Checking whether the URL contains a PDF
-								if (!urlConn.getContentType().equalsIgnoreCase("application/pdf")) {
-									System.out.println("FAILED.\n[Sorry. This is not a PDF.]");
-								} else {
-
-										// Read the PDF from the URL and save to a local file
-										InputStream is1 = url1.openStream();
-										while ((baLength = is1.read(ba1)) != -1) {
-											fos1.write(ba1, 0, baLength);
+							final PDFTaskRequest taskRequest = new PDFTaskRequest(msg);
+							
+							Future<BufferedImage> future = execService.submit(
+									new Callable<BufferedImage>() {
+										public BufferedImage call() throws IOException
+										{
+											ByteBuffer pdfData = getPDFData(
+													taskRequest.getPDFURL());
+											
+											PDFFile pdfFile = new PDFFile(pdfData);
+											PDFPage firstPage = pdfFile.getPage(0);
+											
+											if (firstPage == null) {
+												logger.log(
+													Level.WARNING,
+													"Could not retrieve first page of " +
+													taskRequest.getPDFURL());
+												return null;
+											}
+											
+											BufferedImage img = getPDFPageThumbnail(firstPage);
+											
+											return img;
 										}
-										fos1.flush();
-										fos1.close();
-										is1.close();
+									});
+							
+							BufferedImage img;
+							try {
+								img = future.get(WORKER_PDF_TIMEOUT, WORKER_PDF_TIMEOUT_UNIT);
+							} catch (TimeoutException te) {
+								if (!future.cancel(true)) {
+									logger.log(
+										Level.WARNING,
+										"Error cancelling timed out PDF task for " + 
+										taskRequest.getPDFURL());
 								}
-									} catch (Exception e) {
-										System.out.println("FAILED.\n[" + e.getMessage() + "]");
-									}
-
-									File file = new File("download.pdf");
-									File imageFile = 
-										File.createTempFile(WORKER_TEMP_FILE_NAME_PREFIX, null);
-
-									RandomAccessFile raf;
-									try {
-										raf = new RandomAccessFile(file, "r");
-
-										FileChannel channel = raf.getChannel();
-										ByteBuffer buf = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
-										PDFFile pdffile = new PDFFile(buf);
-										// draw the first page to an image
-										PDFPage page = pdffile.getPage(0);
-
-										//get the width and height for the doc at the default zoom				
-										int width=(int)page.getBBox().getWidth();
-										int height=(int)page.getBBox().getHeight();				
-
-										Rectangle rect = new Rectangle(0,0,width,height);
-										int rotation=page.getRotation();
-										Rectangle rect1=rect;
-										if(rotation==90 || rotation==270)
-											rect1=new Rectangle(0,0,rect.height,rect.width);
-
-										//generate the image
-										BufferedImage img = (BufferedImage)page.getImage(
-												rect.width, rect.height, //width & height
-												rect1, // clip rect
-												null, // null for the ImageObserver
-												true, // fill background with white
-												true  // block until drawing is done
-										);
-										
-										ImageIO.write(img, "png", imageFile);
-									}
-
-									catch (FileNotFoundException e1) {
-										System.err.println(e1.getLocalizedMessage());
-									} catch (IOException e) {
-										System.err.println(e.getLocalizedMessage());
-									}
+								img = null;
+							} catch (Exception e) {
+								logger.log(
+									Level.WARNING,
+									"PDF thumbnailing failed for " + taskRequest.getPDFURL(),
+									e);
+								
+								img = null;
+							}
 							
-							
-							
-							
-							
-							String imageKey = "thumbnail-" + UUID.randomUUID().toString() + ".png";
-							
-							logger.log(Level.INFO, "Uploading " + imageKey + " to S3");
+							if (img == null) {
+								img = ImageIO.read(
+										Main.class.getResourceAsStream(
+												WORKER_ERROR_THUMBNAIL_NAME));
+							}
 														
-							PutObjectRequest por = new PutObjectRequest(
-									Consts.WORKER_THUMBNAIL_BUCKET_NAME,
-									imageKey,
-									imageFile).withCannedAcl(CannedAccessControlList.PublicRead);
-							s3.putObject(por);					
-							
-							imageFile.delete();
+							String imageKey = uploadPNG(img);
 							
 							PDFTaskResponse response = new PDFTaskResponse(
 									taskRequest.getPDFURL(),
@@ -196,17 +284,23 @@ public class Main {
 											imageKey),
 									taskRequest.getUUID());
 							
+							logger.log(
+								Level.INFO,
+								"Sending response message for " + taskRequest.getPDFURL());
+							
 							SendMessageRequest smr = new SendMessageRequest(
 									responseQueueUrl,
 									response.toString());
 							sqs.sendMessage(smr);
+
+							DeleteMessageRequest dmr = 
+								new DeleteMessageRequest(requestQueueUrl, msg.getReceiptHandle());
+							sqs.deleteMessage(dmr);
 							
 							logger.log(Level.INFO, "Worker done with " + taskRequest.getPDFURL());
-
-							DeleteMessageRequest dmr = new DeleteMessageRequest(requestQueueUrl, msg.getReceiptHandle());
-							sqs.deleteMessage(dmr);			
 						} catch (Exception e) {
-							logger.log(Level.WARNING, "Error processing PDF task.", e);
+							logger.log(
+								Level.WARNING, "Error processing PDF task ", e);
 						}
 					}
 				}
