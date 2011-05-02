@@ -19,8 +19,8 @@ public class ContextsMain {
 	public static void main(String[] args) throws Exception {
 		Configuration conf = new Configuration();
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-		if (otherArgs.length != 3) {
-			System.err.println("Usage: contextsmain <in> <out1> <out>");
+		if (otherArgs.length != 4) {
+			System.err.println("Usage: contextsmain <in> <out1> <out2> <out>");
 			System.exit(3);
 		}
 		
@@ -63,6 +63,26 @@ public class ContextsMain {
 		
 		if (!succeeded) {
 			System.err.println("Second job failed");
+			System.exit(2);
+		}
+		
+		Job contextsJob = new Job(conf, "contexts");
+		contextsJob.setJarByClass(ContextsMain.class);
+		contextsJob.setMapperClass(ContextsMapper.class);
+		contextsJob.setMapOutputKeyClass(Text.class);
+		contextsJob.setMapOutputValueClass(LongWritable.class);
+		contextsJob.setInputFormatClass(SequenceFileInputFormat.class);
+		contextsJob.setOutputFormatClass(SequenceFileOutputFormat.class);		
+		contextsJob.setOutputKeyClass(Text.class);
+		contextsJob.setOutputValueClass(LongWritable.class);
+		FileInputFormat.addInputPath(contextsJob, new Path(otherArgs[2]));
+		FileOutputFormat.setOutputPath(contextsJob, new Path(otherArgs[3]));
+		
+		
+		succeeded = contextsJob.waitForCompletion(true);
+		
+		if (!succeeded) {
+			System.err.println("Third job failed");
 			System.exit(2);
 		}
 	}
