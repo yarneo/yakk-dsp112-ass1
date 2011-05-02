@@ -30,7 +30,12 @@ public class UserWritable implements Writable {
     
     public UserWritable(UserWritable other) {
     	this.frequency = new LongWritable(other.frequency.get());
-    	this.contexts = new UserArrayWritable((ContextsUserWritable[])(other.contexts.get()));
+    	ContextsUserWritable[] ConUsWriArr = new ContextsUserWritable[other.contexts.get().length];
+    	for(int i=0;i<other.contexts.get().length;i++) {
+    		ConUsWriArr[i] = new ContextsUserWritable((ContextsUserWritable)other.contexts.get()[i]);
+    	}
+    	this.contexts = new UserArrayWritable(ConUsWriArr);
+    	
     }
  
     @Override
