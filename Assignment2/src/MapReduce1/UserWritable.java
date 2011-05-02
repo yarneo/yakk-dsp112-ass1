@@ -13,17 +13,17 @@ public class UserWritable implements Writable {
     private LongWritable frequency;
     private UserArrayWritable contexts;
  
-    UserWritable() {
+    public UserWritable() {
     	this.frequency = new LongWritable();
     	this.contexts = new UserArrayWritable();
     }
     
-    UserWritable(LongWritable frequency) {
+    public UserWritable(LongWritable frequency) {
         this.frequency = frequency;
         this.contexts = new UserArrayWritable();
     }
  
-    UserWritable(LongWritable frequency,UserArrayWritable contexts) {
+    public UserWritable(LongWritable frequency,UserArrayWritable contexts) {
         this.frequency = frequency;
         this.contexts = contexts;
     }
