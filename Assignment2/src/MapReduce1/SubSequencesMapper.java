@@ -24,7 +24,7 @@ import org.apache.hadoop.mapreduce.Mapper;
 
 
 
-public class SubSequencesMapper extends Mapper<Object, Text, Text, UserWritable>{
+public class SubSequencesMapper extends Mapper<Text, LongWritable, Text, UserWritable>{
 
 	public static ArrayList<ArrayList<String>> powerList( ArrayList<String> OriginalList) {
 		ArrayList<ArrayList<String>> lists1 = new ArrayList<ArrayList<String>>();
@@ -48,19 +48,15 @@ public class SubSequencesMapper extends Mapper<Object, Text, Text, UserWritable>
 
 
 
-	public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+	public void map(Text key, LongWritable value, Context context) throws IOException, InterruptedException {
 		Text word = new Text();
 		LongWritable freqs = new LongWritable();
 		LongWritable ctxtFreq = new LongWritable();
+				
+		long freq = value.get();
+
+		StringTokenizer itr = new StringTokenizer(key.toString());
 		ArrayList<String> words = new ArrayList<String>();
-		String[] strarr = value.toString().split("\\s+");
-		Long freq = Long.parseLong(strarr[strarr.length-1]);
-		//context.getCounter(HadoopJob.Counters.INPUT_WORDS).increment(freq);
-		String inp = "";
-		for(int i=0;i<strarr.length-1;i++) {
-			inp+= strarr[i] + " ";
-		}
-		StringTokenizer itr = new StringTokenizer(inp);
 		while (itr.hasMoreTokens()) {
 			words.add(itr.nextToken());            
 		}
