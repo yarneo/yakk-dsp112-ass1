@@ -18,7 +18,7 @@ public class ContextsUserWritable implements Writable {
     	this.contextFrequency = new LongWritable();
     }
     
-    ContextsUserWritable(ContextsUserWritable other) {
+    public ContextsUserWritable(ContextsUserWritable other) {
     	this.context = new Text(other.context.getBytes());
     	this.contextFrequency = new LongWritable(other.contextFrequency.get());
     }
@@ -45,10 +45,10 @@ public class ContextsUserWritable implements Writable {
     	contextFrequency.write(data);
     }
  
-    public Text getFrequency() { return context; }
-    public LongWritable getContexts() { return contextFrequency; }
-    public void setFrequency(Text context) { this.context = context; }
-    public void setContexts(LongWritable contextFrequency) { this.contextFrequency = contextFrequency; }
+    public LongWritable getFrequency() { return contextFrequency; }
+    public Text getContext() { return context; }
+    public void setContext(Text context) { this.context = context; }
+    public void setFrequency(LongWritable contextFrequency) { this.contextFrequency = contextFrequency; }
     
     public String toString() {
         System.out.println("Ctxt: " + context.toString() + " CtxtFreq: " + contextFrequency.toString());
