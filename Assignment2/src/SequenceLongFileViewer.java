@@ -1,12 +1,10 @@
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 
-import MapReduce1.UserWritable;
-
-
-public class SequenceFileViewer {
+public class SequenceLongFileViewer {
 
 	/**
 	 * @param args
@@ -23,7 +21,7 @@ public class SequenceFileViewer {
 				inPath.getFileSystem(conf), inPath, conf);
 		
 		Text key = new Text();
-		UserWritable value = new UserWritable();
+		LongWritable value = new LongWritable();
 		
 		while (sfr.next(key, value)) {
 			System.out.println("Key: " + key.toString() + "\tValue: " + value.toString());			
