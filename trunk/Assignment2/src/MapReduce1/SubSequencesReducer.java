@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 // import org.apache.commons.logging.Log;
 // import org.apache.commons.logging.LogFactory;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -20,9 +22,14 @@ import org.apache.hadoop.io.Text;
  * @author yarneo
  */
 public class SubSequencesReducer extends Reducer<Text,UserWritable,Text,UserWritable> {
+	private static final Log LOG = LogFactory.getLog("SubSequencesReducer");
 
 	public void reduce(Text key, Iterable<UserWritable> values,Context context) throws IOException, InterruptedException {
-		long counter = 10000;
+		long counter = context.getConfiguration().getLong("fivegrams", -1);
+		if (counter == -1) {
+			LOG.error("Error retrieving counter");
+			return;
+		}
 		double MinSupportValue = 0.8;
 		
 		int sum = 0;
@@ -44,8 +51,7 @@ public class SubSequencesReducer extends Reducer<Text,UserWritable,Text,UserWrit
 			i++;
 		}
 		if((double)(frequency / counter) >= MinSupportValue) {
-		UserWritable result = new UserWritable(new LongWritable(frequency),new UserArrayWritable(ctxts));	
-		//System.out.println(context.getCounter(HadoopJob.Counters.INPUT_WORDS).getValue());
+		UserWritable result = new UserWritable(new LongWritable(frequency),new UserArrayWritable(ctxts));
 		context.write(key, result);
 		}
 	}
