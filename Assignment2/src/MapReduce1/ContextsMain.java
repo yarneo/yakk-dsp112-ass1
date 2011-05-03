@@ -19,8 +19,8 @@ public class ContextsMain {
 	public static void main(String[] args) throws Exception {
 		Configuration conf = new Configuration();
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-		if (otherArgs.length != 4) {
-			System.err.println("Usage: contextsmain <in> <out1> <out2> <out>");
+		if (otherArgs.length != 5) {
+			System.err.println("Usage: contextsmain <in> <out1> <out2> <out3> <out>");
 			System.exit(3);
 		}
 		
@@ -72,7 +72,6 @@ public class ContextsMain {
 		conf.setLong(
 				"contextss",
 				subsequencesJob.getCounters().findCounter(ContextsCounters.CONTEXTS_COUNTER).getValue());
-		conf.set("mapred.textoutputformat.separator", " , ");
 		
 		Job contextsJob = new Job(conf, "contexts");
 		contextsJob.setJarByClass(ContextsMain.class);
@@ -81,7 +80,7 @@ public class ContextsMain {
 		contextsJob.setMapOutputValueClass(LongWritable.class);
 		contextsJob.setReducerClass(ContextsReducer.class);
 		contextsJob.setInputFormatClass(SequenceFileInputFormat.class);
-		contextsJob.setOutputFormatClass(org.apache.hadoop.mapreduce.lib.output.TextOutputFormat.class);
+		contextsJob.setOutputFormatClass(SequenceFileOutputFormat.class);
 		contextsJob.setOutputKeyClass(Text.class);
 		contextsJob.setOutputValueClass(LongWritable.class);
 		FileInputFormat.addInputPath(contextsJob, new Path(otherArgs[2]));
@@ -89,6 +88,30 @@ public class ContextsMain {
 		
 		
 		succeeded = contextsJob.waitForCompletion(true);
+		
+		if (!succeeded) {
+			System.err.println("Third job failed");
+			System.exit(2);
+		}
+	
+		conf.set("mapred.textoutputformat.separator", " , ");
+		
+		Job sortJob = new Job(conf, "sort");
+		sortJob.setJarByClass(ContextsMain.class);
+		sortJob.setMapperClass(SortMapper.class);
+		sortJob.setMapOutputKeyClass(LongWritable.class);
+		sortJob.setMapOutputValueClass(Text.class);
+		sortJob.setSortComparatorClass(org.apache.hadoop.io.LongWritable.DecreasingComparator.class);
+		sortJob.setReducerClass(SortReducer.class);
+		sortJob.setInputFormatClass(SequenceFileInputFormat.class);
+		sortJob.setOutputFormatClass(org.apache.hadoop.mapreduce.lib.output.TextOutputFormat.class);
+		sortJob.setOutputKeyClass(Text.class);
+		sortJob.setOutputValueClass(LongWritable.class);
+		FileInputFormat.addInputPath(sortJob, new Path(otherArgs[3]));
+		FileOutputFormat.setOutputPath(sortJob, new Path(otherArgs[4]));
+		
+		
+		succeeded = sortJob.waitForCompletion(true);
 		
 		if (!succeeded) {
 			System.err.println("Third job failed");
