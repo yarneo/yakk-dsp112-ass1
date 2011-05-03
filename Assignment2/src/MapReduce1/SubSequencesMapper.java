@@ -10,6 +10,7 @@ package MapReduce1;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.StringTokenizer;
 
@@ -26,6 +27,8 @@ import org.apache.hadoop.mapreduce.Mapper;
 
 public class SubSequencesMapper extends Mapper<Text, LongWritable, Text, UserWritable>{
 
+	Hashtable StopWords = new Hashtable<String, String>();
+	
 	public static ArrayList<ArrayList<String>> powerList( ArrayList<String> OriginalList) {
 		ArrayList<ArrayList<String>> lists1 = new ArrayList<ArrayList<String>>();
 		if (OriginalList.isEmpty()) {
@@ -87,7 +90,9 @@ public class SubSequencesMapper extends Mapper<Text, LongWritable, Text, UserWri
 				}
 
 				for(int k=0;k<contextAL.size();k++) {
+				    if(!Stopwords.isStopword(contextAL.get(k))) {
 					tmp2 += contextAL.get(k) + " ";
+				    }
 				}
 				word.set(tmp);
 				freqs.set(freq);

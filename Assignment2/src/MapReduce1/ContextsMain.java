@@ -43,11 +43,17 @@ public class ContextsMain {
 			System.exit(1);
 		}
 		
+		conf.setLong(
+				"fivegrams",
+				countAndFormatJob.getCounters().findCounter(ContextsCounters.FIVEGRAMS_COUNTER).getValue());		
+			
+		
 		Job subsequencesJob = new Job(conf, "subsequences");
 		subsequencesJob.setJarByClass(ContextsMain.class);
 		subsequencesJob.setMapperClass(SubSequencesMapper.class);
 		subsequencesJob.setMapOutputKeyClass(Text.class);
 		subsequencesJob.setMapOutputValueClass(UserWritable.class);
+		subsequencesJob.setReducerClass(SubSequencesReducer.class);
 		subsequencesJob.setInputFormatClass(SequenceFileInputFormat.class);
 		subsequencesJob.setOutputFormatClass(SequenceFileOutputFormat.class);		
 		subsequencesJob.setOutputKeyClass(Text.class);
@@ -55,10 +61,7 @@ public class ContextsMain {
 		FileInputFormat.addInputPath(subsequencesJob, new Path(otherArgs[1]));
 		FileOutputFormat.setOutputPath(subsequencesJob, new Path(otherArgs[2]));
 		
-		conf.setLong(
-				"fivegrams",
-				countAndFormatJob.getCounters().findCounter(ContextsCounters.FIVEGRAMS_COUNTER).getValue());		
-				
+	
 		succeeded = subsequencesJob.waitForCompletion(true);
 		
 		if (!succeeded) {
@@ -66,13 +69,19 @@ public class ContextsMain {
 			System.exit(2);
 		}
 		
+		conf.setLong(
+				"contextss",
+				subsequencesJob.getCounters().findCounter(ContextsCounters.CONTEXTS_COUNTER).getValue());
+		conf.set("mapred.textoutputformat.separator", " , ");
+		
 		Job contextsJob = new Job(conf, "contexts");
 		contextsJob.setJarByClass(ContextsMain.class);
 		contextsJob.setMapperClass(ContextsMapper.class);
 		contextsJob.setMapOutputKeyClass(Text.class);
 		contextsJob.setMapOutputValueClass(LongWritable.class);
+		contextsJob.setReducerClass(ContextsReducer.class);
 		contextsJob.setInputFormatClass(SequenceFileInputFormat.class);
-		contextsJob.setOutputFormatClass(SequenceFileOutputFormat.class);		
+		contextsJob.setOutputFormatClass(org.apache.hadoop.mapreduce.lib.output.TextOutputFormat.class);
 		contextsJob.setOutputKeyClass(Text.class);
 		contextsJob.setOutputValueClass(LongWritable.class);
 		FileInputFormat.addInputPath(contextsJob, new Path(otherArgs[2]));

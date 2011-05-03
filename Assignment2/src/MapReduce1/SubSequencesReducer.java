@@ -13,6 +13,7 @@ import java.util.ArrayList;
 // import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -30,7 +31,7 @@ public class SubSequencesReducer extends Reducer<Text,UserWritable,Text,UserWrit
 			LOG.error("Error retrieving counter");
 			return;
 		}
-		double MinSupportValue = 0.8;
+		double MinSupportValue = 0.5;
 		
 		int sum = 0;
 		ArrayList<UserWritable> valueList = new ArrayList<UserWritable>();
@@ -50,7 +51,16 @@ public class SubSequencesReducer extends Reducer<Text,UserWritable,Text,UserWrit
 			ctxts[i] = (ContextsUserWritable)(val.getContexts().get()[0]);
 			i++;
 		}
-		if((double)(frequency / counter) >= MinSupportValue) {
+	//      LOG.info("COUNTER ISSSSSS:" + counter + " FREQUENCY ISSSSS:" + frequency);
+		if((double)((double)frequency / counter) >= MinSupportValue) {
+		
+			Counter c = context.getCounter(ContextsCounters.CONTEXTS_COUNTER);
+			if (c != null) {
+				c.increment(frequency);
+			} else {
+				LOG.error("Error accessing counter");
+			}	
+			
 		UserWritable result = new UserWritable(new LongWritable(frequency),new UserArrayWritable(ctxts));
 		context.write(key, result);
 		}
