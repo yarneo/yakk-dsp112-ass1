@@ -31,8 +31,12 @@ public class SubSequencesReducer extends Reducer<Text,UserWritable,Text,UserWrit
 			LOG.error("Error retrieving counter");
 			return;
 		}
-		double MinSupportValue = 0.5;
-		
+		float minimumSupport = context.getConfiguration().getFloat("minsup", 2);
+		if(minimumSupport == 2) {
+			LOG.error("Error retrieving minimum support");
+			return;
+		}
+		//LOG.info("MINIMUM SUPPORT IS:" + minimumSupport);
 		int sum = 0;
 		ArrayList<UserWritable> valueList = new ArrayList<UserWritable>();
 		for (UserWritable val : values) {
@@ -52,7 +56,7 @@ public class SubSequencesReducer extends Reducer<Text,UserWritable,Text,UserWrit
 			i++;
 		}
 	//      LOG.info("COUNTER ISSSSSS:" + counter + " FREQUENCY ISSSSS:" + frequency);
-		if((double)((double)frequency / counter) >= MinSupportValue) {
+		if((double)((double)frequency / counter) >= minimumSupport) {
 		
 			Counter c = context.getCounter(ContextsCounters.CONTEXTS_COUNTER);
 			if (c != null) {

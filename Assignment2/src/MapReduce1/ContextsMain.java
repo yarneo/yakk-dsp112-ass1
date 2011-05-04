@@ -19,8 +19,8 @@ public class ContextsMain {
 	public static void main(String[] args) throws Exception {
 		Configuration conf = new Configuration();
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-		if (otherArgs.length != 5) {
-			System.err.println("Usage: contextsmain <in> <out1> <out2> <out3> <out>");
+		if (otherArgs.length != 7) {
+			System.err.println("Usage: contextsmain <in> <out1> <out2> <out3> <out> <minsupport> <minrelativefrequency>");
 			System.exit(3);
 		}
 		
@@ -46,7 +46,7 @@ public class ContextsMain {
 		conf.setLong(
 				"fivegrams",
 				countAndFormatJob.getCounters().findCounter(ContextsCounters.FIVEGRAMS_COUNTER).getValue());		
-			
+		conf.setFloat("minsup", Float.parseFloat(otherArgs[5]));	
 		
 		Job subsequencesJob = new Job(conf, "subsequences");
 		subsequencesJob.setJarByClass(ContextsMain.class);
@@ -72,6 +72,7 @@ public class ContextsMain {
 		conf.setLong(
 				"contextss",
 				subsequencesJob.getCounters().findCounter(ContextsCounters.CONTEXTS_COUNTER).getValue());
+		conf.setFloat("minrelfreq", Float.parseFloat(otherArgs[6]));
 		
 		Job contextsJob = new Job(conf, "contexts");
 		contextsJob.setJarByClass(ContextsMain.class);

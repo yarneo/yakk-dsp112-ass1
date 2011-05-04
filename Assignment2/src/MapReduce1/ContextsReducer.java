@@ -32,15 +32,19 @@ public class ContextsReducer extends Reducer<Text,LongWritable,Text,LongWritable
 			LOG.error("Error retrieving counter");
 			return;
 		}
-		double MinSupportValue = 0.005;
-		
+		float minimumRelativeFrequency = context.getConfiguration().getFloat("minrelfreq", 2);
+		if(minimumRelativeFrequency == 2) {
+			LOG.error("Error retrieving minimum relative frequency");
+			return;
+		}
+		//LOG.info("MINIMUM RELATIVE FREQUENCY IS:" + minimumRelativeFrequency);
 		
 	      long sum = 0;
 	      for (LongWritable val : values) {
 	        sum += val.get();
 	      }
 	      //LOG.info("COUNTER ISSSSSS:" + counter + " SUM ISSSSS:" + sum);
-	      if((double)((double)sum / counter) >= MinSupportValue) {
+	      if((double)((double)sum / counter) >= minimumRelativeFrequency) {
 	      context.write(key, new LongWritable(sum));
 	      }
     }

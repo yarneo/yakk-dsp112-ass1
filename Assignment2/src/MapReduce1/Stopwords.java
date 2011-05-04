@@ -573,6 +573,10 @@ public class Stopwords {
     add("{");
     add("}");
     add("\"!");
+    add(".\"");
+    add("?\"");
+    add(".\"");
+    
   }
 
   /**
