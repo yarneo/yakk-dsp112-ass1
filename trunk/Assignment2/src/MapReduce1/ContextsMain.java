@@ -1,4 +1,6 @@
 package MapReduce1;
+import java.util.Date;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
@@ -23,6 +25,7 @@ public class ContextsMain {
 			System.err.println("Usage: contextsmain <in> <out1> <out2> <out3> <out> <minsupport> <minrelativefrequency>");
 			System.exit(3);
 		}
+		System.out.println(new Date().toString());
 		
 		Job countAndFormatJob = new Job(conf, "count and format");
 		countAndFormatJob.setJarByClass(ContextsMain.class);
@@ -118,6 +121,8 @@ public class ContextsMain {
 			System.err.println("Third job failed");
 			System.exit(2);
 		}
+		
+		System.out.println(new Date().toString());
 	}
 
 }

@@ -30,10 +30,10 @@ public class AmazonJobMain {
 	    HadoopJarStepConfig hadoopJarStep = new HadoopJarStepConfig()
 	        .withJar("s3n://yekk-dsp112/contexts.jar")
 	        .withMainClass("MapReduce1.ContextsMain")
-	        .withArgs("s3n://yekk-dsp112/input/", 
-	        		  "s3n://yekk-dsp112/output1/",
-	        		  "s3n://yekk-dsp112/output2/",
-	        		  "s3n://yekk-dsp112/output3/",
+	        .withArgs("s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/5gram/data", 
+	        		  "hdfs:///output1/",
+	        		  "hdfs:///output2/",
+	        		  "hdfs:///output3/",
 	        		  "s3n://yekk-dsp112/output/",
 	        		  minimumSupport,
 	        		  minimumRelativeFrequency);
@@ -44,7 +44,7 @@ public class AmazonJobMain {
 	        .withActionOnFailure("TERMINATE_JOB_FLOW");
 	     
 	    JobFlowInstancesConfig instances = new JobFlowInstancesConfig()
-	        .withInstanceCount(2)
+	        .withInstanceCount(20)
 	        .withMasterInstanceType(InstanceType.M1Small.toString())
 	        .withSlaveInstanceType(InstanceType.M1Small.toString())
 	        .withHadoopVersion("0.20").withEc2KeyName("MyKeyPair")
@@ -56,7 +56,7 @@ public class AmazonJobMain {
 	        .withInstances(instances)
 	        .withSteps(stepConfig)
 	        .withLogUri("s3n://yekk-dsp112/logs/");
-	     
+
 	    RunJobFlowResult runJobFlowResult = mapReduce.runJobFlow(runFlowRequest);
 	    String jobFlowId = runJobFlowResult.getJobFlowId();
 	    System.out.println("Ran job flow with id: " + jobFlowId);		
