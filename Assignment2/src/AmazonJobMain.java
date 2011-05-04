@@ -3,11 +3,13 @@ import com.amazonaws.auth.PropertiesCredentials;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce;
 import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduceClient;
+import com.amazonaws.services.elasticmapreduce.model.BootstrapActionConfig;
 import com.amazonaws.services.elasticmapreduce.model.HadoopJarStepConfig;
 import com.amazonaws.services.elasticmapreduce.model.JobFlowInstancesConfig;
 import com.amazonaws.services.elasticmapreduce.model.PlacementType;
 import com.amazonaws.services.elasticmapreduce.model.RunJobFlowRequest;
 import com.amazonaws.services.elasticmapreduce.model.RunJobFlowResult;
+import com.amazonaws.services.elasticmapreduce.model.ScriptBootstrapActionConfig;
 import com.amazonaws.services.elasticmapreduce.model.StepConfig;
 
 public class AmazonJobMain {
@@ -26,6 +28,10 @@ public class AmazonJobMain {
 					"/AwsCredentials.properties"));
 		AmazonElasticMapReduce mapReduce = 
 			new AmazonElasticMapReduceClient(credentials);
+		
+		HadoopJarStepConfig debugJarStep = new HadoopJarStepConfig()
+			.withJar("s3n://elasticmapreduce/libs/script-runner.jar")
+			.withArgs("s3n://elasticmapreduce/libs/state-pusher/0.1/fetch");
 	     
 	    HadoopJarStepConfig hadoopJarStep = new HadoopJarStepConfig()
 	        .withJar("s3n://yekk-dsp112/contexts.jar")
@@ -37,6 +43,11 @@ public class AmazonJobMain {
 	        		  "s3n://yekk-dsp112/output/",
 	        		  minimumSupport,
 	        		  minimumRelativeFrequency);
+	    
+	    StepConfig debugStepConfig = new StepConfig()
+	    	.withName("debug")
+	    	.withHadoopJarStep(debugJarStep)
+	    	.withActionOnFailure("TERMINATE_JOB_FLOW");
 	     
 	    StepConfig stepConfig = new StepConfig()
 	        .withName("contexts")
@@ -49,12 +60,16 @@ public class AmazonJobMain {
 	        .withSlaveInstanceType(InstanceType.M1Small.toString())
 	        .withHadoopVersion("0.20").withEc2KeyName("MyKeyPair")
 	        .withKeepJobFlowAliveWhenNoSteps(false)
-	        .withPlacement(new PlacementType());
+	        .withPlacement(new PlacementType());	  	 
 	     
 	    RunJobFlowRequest runFlowRequest = new RunJobFlowRequest()
 	        .withName("contexts job")
 	        .withInstances(instances)
-	        .withSteps(stepConfig)
+	        .withSteps(debugStepConfig, stepConfig)
+	        .withBootstrapActions(new BootstrapActionConfig(
+	        		"memory intensive",
+	        		new ScriptBootstrapActionConfig()
+	        			.withPath("s3n://elasticmapreduce/bootstrap-actions/configurations/latest/memory-intensive")))
 	        .withLogUri("s3n://yekk-dsp112/logs/");
 
 	    RunJobFlowResult runJobFlowResult = mapReduce.runJobFlow(runFlowRequest);
