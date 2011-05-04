@@ -11,7 +11,7 @@ import com.amazonaws.services.elasticmapreduce.model.RunJobFlowResult;
 import com.amazonaws.services.elasticmapreduce.model.StepConfig;
 
 public class AmazonJobMain {
-	public void main(String args[]) throws Exception
+	public static void main(String args[]) throws Exception
 	{
 		if (args.length != 2) {
 			System.err.println("Usage: AmazonJobMain <minimumSupport> <minimumRelativeFrequency>");
@@ -34,9 +34,7 @@ public class AmazonJobMain {
 	        		  "s3n://yekk-dsp112/output1/",
 	        		  "s3n://yekk-dsp112/output2/",
 	        		  "s3n://yekk-dsp112/output3/",
-	        		  "s3n://yekk-dsp112/output/",
-	        		  minimumSupport,
-	        		  minimumRelativeFrequency);
+	        		  "s3n://yekk-dsp112/output/");
 	     
 	    StepConfig stepConfig = new StepConfig()
 	        .withName("contexts")

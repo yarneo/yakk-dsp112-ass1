@@ -10,7 +10,6 @@ package MapReduce1;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.StringTokenizer;
 
@@ -26,8 +25,6 @@ import org.apache.hadoop.mapreduce.Mapper;
 
 
 public class SubSequencesMapper extends Mapper<Text, LongWritable, Text, UserWritable>{
-
-	Hashtable StopWords = new Hashtable<String, String>();
 	
 	public static ArrayList<ArrayList<String>> powerList( ArrayList<String> OriginalList) {
 		ArrayList<ArrayList<String>> lists1 = new ArrayList<ArrayList<String>>();
@@ -70,7 +67,12 @@ public class SubSequencesMapper extends Mapper<Text, LongWritable, Text, UserWri
 				int index=0;
 				ArrayList<String> contextAL = new ArrayList<String>();
 				for(int j=0;j<s.size();j++) {
-					tmp += s.get(j) + " ";
+					if(j==s.size()-1) {
+						tmp += s.get(j);
+					}
+					else {
+						tmp += s.get(j) + " ";
+					}
 					for(int i=index;i<words.size();i++) {
 						if(s.get(j).equals(words.get(i)) && (j!=s.size()-1)) {
 							index=i+1;
@@ -91,7 +93,12 @@ public class SubSequencesMapper extends Mapper<Text, LongWritable, Text, UserWri
 
 				for(int k=0;k<contextAL.size();k++) {
 				    if(!Stopwords.isStopword(contextAL.get(k))) {
-					tmp2 += contextAL.get(k) + " ";
+				    	if(k == contextAL.size()-1) {
+				    		tmp2 += contextAL.get(k);
+				    	}
+				    	else {
+				    		tmp2 += contextAL.get(k) + " ";
+				    	}
 				    }
 				}
 				word.set(tmp);

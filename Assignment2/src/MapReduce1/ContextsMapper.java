@@ -33,7 +33,9 @@ public class ContextsMapper extends Mapper<Text,Object,Text,LongWritable> {
     UserWritable uw = new UserWritable((UserWritable)value);
     for(int i=0;i<uw.getContexts().get().length;i++) {
     	ContextsUserWritable cuw = new ContextsUserWritable((ContextsUserWritable)uw.getContexts().get()[i]);
+    	if(!cuw.getContext().toString().isEmpty()) {
     	context.write(cuw.getContext(), cuw.getFrequency());
+    	}
     }
     }
 }
