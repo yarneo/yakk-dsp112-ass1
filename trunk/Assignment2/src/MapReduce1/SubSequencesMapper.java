@@ -92,18 +92,23 @@ public class SubSequencesMapper extends Mapper<Text, LongWritable, Text, UserWri
 				}
 
 				for(int k=0;k<contextAL.size();k++) {
-				    if(!Stopwords.isStopword(contextAL.get(k))) {
+					String strTemp = contextAL.get(k);
+				    if(!Stopwords.isStopword(strTemp)) {
 				    	if(k == contextAL.size()-1) {
-				    		tmp2 += contextAL.get(k);
+				    		if(strTemp.endsWith("\"")) {
+				    			strTemp = strTemp.substring(0, strTemp.length()-1);
+				    		}
+				    		tmp2 += strTemp;
 				    	}
 				    	else {
-				    		tmp2 += contextAL.get(k) + " ";
+				    		tmp2 += strTemp + " ";
 				    	}
 				    }
 				}
 				word.set(tmp);
 				freqs.set(freq);
 				ctxtFreq.set(freq);
+				tmp2 = tmp2.trim();
 				ContextsUserWritable cuw = new ContextsUserWritable(new Text(tmp2),ctxtFreq);
 				ContextsUserWritable[] cuwArr = {cuw};
 				UserArrayWritable ctxts = new UserArrayWritable(cuwArr);

@@ -34,7 +34,9 @@ public class AmazonJobMain {
 	        		  "s3n://yekk-dsp112/output1/",
 	        		  "s3n://yekk-dsp112/output2/",
 	        		  "s3n://yekk-dsp112/output3/",
-	        		  "s3n://yekk-dsp112/output/");
+	        		  "s3n://yekk-dsp112/output/",
+	        		  minimumSupport,
+	        		  minimumRelativeFrequency);
 	     
 	    StepConfig stepConfig = new StepConfig()
 	        .withName("contexts")
