@@ -30,8 +30,8 @@ public class AmazonJobMain {
 			new AmazonElasticMapReduceClient(credentials);
 		
 		HadoopJarStepConfig debugJarStep = new HadoopJarStepConfig()
-			.withJar("s3n://elasticmapreduce/libs/script-runner.jar")
-			.withArgs("s3n://elasticmapreduce/libs/state-pusher/0.1/fetch");
+			.withJar("s3n://us-east-1.elasticmapreduce/libs/script-runner/script-runner.jar")
+			.withArgs("s3n://us-east-1.elasticmapreduce/libs/state-pusher/0.1/fetch");
 	     
 	    HadoopJarStepConfig hadoopJarStep = new HadoopJarStepConfig()
 	        .withJar("s3n://yekk-dsp112/contexts.jar")
@@ -69,7 +69,7 @@ public class AmazonJobMain {
 	        .withBootstrapActions(new BootstrapActionConfig(
 	        		"memory intensive",
 	        		new ScriptBootstrapActionConfig()
-	        			.withPath("s3n://elasticmapreduce/bootstrap-actions/configurations/latest/memory-intensive")))
+	        			.withPath("s3n://us-east-1.elasticmapreduce/bootstrap-actions/configurations/latest/memory-intensive")))
 	        .withLogUri("s3n://yekk-dsp112/logs/");
 
 	    RunJobFlowResult runJobFlowResult = mapReduce.runJobFlow(runFlowRequest);
