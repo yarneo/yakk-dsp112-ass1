@@ -32,6 +32,9 @@ public class ContextsMain {
 		countAndFormatJob.setMapperClass(RowMapper.class);
 		countAndFormatJob.setMapOutputKeyClass(Text.class);
 		countAndFormatJob.setMapOutputValueClass(LongWritable.class);
+		countAndFormatJob.setReducerClass(RowReducer.class);
+		FileInputFormat.setMinInputSplitSize(countAndFormatJob, 1024L*10000);
+		FileInputFormat.setMaxInputSplitSize(countAndFormatJob, 1024L*20000);
 		countAndFormatJob.setInputFormatClass(SequenceFileInputFormat.class);
 		countAndFormatJob.setOutputFormatClass(SequenceFileOutputFormat.class);
 		countAndFormatJob.setOutputKeyClass(Text.class);
@@ -48,7 +51,8 @@ public class ContextsMain {
 		
 		conf.setLong(
 				"fivegrams",
-				countAndFormatJob.getCounters().findCounter(ContextsCounters.FIVEGRAMS_COUNTER).getValue());		
+				countAndFormatJob.getCounters().findCounter(ContextsCounters.FIVEGRAMS_COUNTER).getValue());	
+		//conf.setLong("fivegrams", 300000);
 		conf.setFloat("minsup", Float.parseFloat(otherArgs[5]));	
 		
 		Job subsequencesJob = new Job(conf, "subsequences");
@@ -107,6 +111,7 @@ public class ContextsMain {
 		sortJob.setMapOutputValueClass(Text.class);
 		sortJob.setSortComparatorClass(org.apache.hadoop.io.LongWritable.DecreasingComparator.class);
 		sortJob.setReducerClass(SortReducer.class);
+		sortJob.setNumReduceTasks(1);
 		sortJob.setInputFormatClass(SequenceFileInputFormat.class);
 		sortJob.setOutputFormatClass(org.apache.hadoop.mapreduce.lib.output.TextOutputFormat.class);
 		sortJob.setOutputKeyClass(Text.class);
