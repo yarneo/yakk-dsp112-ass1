@@ -52,7 +52,6 @@ public class ContextsMain {
 		conf.setLong(
 				"fivegrams",
 				countAndFormatJob.getCounters().findCounter(ContextsCounters.FIVEGRAMS_COUNTER).getValue());	
-		//conf.setLong("fivegrams", 300000);
 		conf.setFloat("minsup", Float.parseFloat(otherArgs[5]));	
 		
 		Job subsequencesJob = new Job(conf, "subsequences");
