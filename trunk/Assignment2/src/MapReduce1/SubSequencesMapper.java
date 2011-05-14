@@ -98,6 +98,9 @@ public class SubSequencesMapper extends Mapper<Text, LongWritable, Text, UserWri
 				    		if(strTemp.endsWith("\"")) {
 				    			strTemp = strTemp.substring(0, strTemp.length()-1);
 				    		}
+				    		if(strTemp.startsWith("\"")) {
+				    			strTemp = strTemp.substring(1, strTemp.length());
+				    		}
 				    		tmp2 += strTemp;
 				    	}
 				    	else {
