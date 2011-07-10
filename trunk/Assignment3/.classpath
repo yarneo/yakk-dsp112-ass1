@@ -6,5 +6,6 @@
 	<classpathentry kind="con" path="com.karmasphere.studio.common.eclipse.library.LibraryClasspathContainer/com.karmasphere.libs.hadoop.v20/com/karmasphere/libs/hadoop/v20/hadoop-library-0.20.xml"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="lib" path="dsp-tagger.jar"/>
+	<classpathentry kind="lib" path="hadoop-0.20.2-datajoin.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
