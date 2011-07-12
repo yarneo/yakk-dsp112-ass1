@@ -55,6 +55,6 @@ public abstract class TaggedValue<T extends Writable,V extends Writable> impleme
  
  
     public T getTag() { return tag; }
-    public V getvalue() { return value; }
+    public V getValue() { return value; }
     public void setValue(V value) { this.value = value; }
 }

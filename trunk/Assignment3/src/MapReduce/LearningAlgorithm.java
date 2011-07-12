@@ -6,13 +6,13 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.mapreduce.lib.reduce.LongSumReducer;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.util.ToolRunner;
 import dsp.tagger.BGUTagDictionary;
@@ -27,36 +27,46 @@ public class LearningAlgorithm {
 	public static void main(String[] args) throws Exception {
 		Configuration conf = new Configuration();
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-		if (otherArgs.length != 5) {
-			System.err.println("Usage: learningalgo <threshold> <in> <out> <out1> <out2>");
+		if (otherArgs.length != 8) {
+			System.err.println(
+					"Usage: learningalgo <threshold> <inCorpus> <outNgrams> <outInitDist> <outWord> <outContext> <outWordJoin> <outWordSum>");
 			System.exit(3);
 		}
 		System.out.println(new Date().toString());
-
-		//		Job countAndFormatJob = new Job(conf, "count and format");
-		//		countAndFormatJob.setJarByClass(LearningAlgorithm.class);
-		//		countAndFormatJob.setMapperClass(RowMapper.class);
-		//		countAndFormatJob.setMapOutputKeyClass(Text.class);
-		//		countAndFormatJob.setMapOutputValueClass(LongWritable.class);
-		//		countAndFormatJob.setReducerClass(RowReducer.class);
-		//		FileInputFormat.setMinInputSplitSize(countAndFormatJob, 1024L*10000);
-		//		FileInputFormat.setMaxInputSplitSize(countAndFormatJob, 1024L*20000);
-		//		countAndFormatJob.setInputFormatClass(SequenceFileInputFormat.class);
-		//		countAndFormatJob.setOutputFormatClass(SequenceFileOutputFormat.class);
-		//		countAndFormatJob.setOutputKeyClass(Text.class);
-		//		countAndFormatJob.setOutputValueClass(LongWritable.class);
-		//		FileInputFormat.addInputPath(countAndFormatJob, new Path(otherArgs[1]));
-		//		FileOutputFormat.setOutputPath(countAndFormatJob, new Path(otherArgs[2]));
-		//		
-		//		boolean succeeded = countAndFormatJob.waitForCompletion(true);
-		//		
-		//		if (!succeeded) {
-		//			System.err.println("First job failed");
-		//			System.exit(1);
-		//		}
-		//		
-
+		
 		long T = Long.parseLong(otherArgs[0]);
+		Path corpusPath = new Path(otherArgs[1]);
+		Path countedNgramsOutputPath = new Path(otherArgs[2]);
+		Path initialDistributionOutputPath = new Path(otherArgs[3]);
+		Path wordInfoOutputPath = new Path(otherArgs[4]);
+		Path contextInfoOutputPath = new Path(otherArgs[5]);
+		Path wordJoinOutputPath = new Path(otherArgs[6]);
+		Path wordSumOutputPath = new Path(otherArgs[7]);
+		
+		boolean succeeded = false;
+
+		Job countAndFormatJob = new Job(conf, "count and format");
+		countAndFormatJob.setJarByClass(LearningAlgorithm.class);
+		countAndFormatJob.setMapperClass(RowMapper.class);
+		countAndFormatJob.setMapOutputKeyClass(Text.class);
+		countAndFormatJob.setMapOutputValueClass(LongWritable.class);
+		//countAndFormatJob.setReducerClass(RowReducer.class);
+		countAndFormatJob.setReducerClass(LongSumReducer.class);
+		FileInputFormat.setMinInputSplitSize(countAndFormatJob, 1024L*10000);
+		FileInputFormat.setMaxInputSplitSize(countAndFormatJob, 1024L*20000);
+		countAndFormatJob.setInputFormatClass(SequenceFileInputFormat.class);
+		countAndFormatJob.setOutputFormatClass(SequenceFileOutputFormat.class);
+		countAndFormatJob.setOutputKeyClass(Text.class);
+		countAndFormatJob.setOutputValueClass(LongWritable.class);
+		FileInputFormat.addInputPath(countAndFormatJob, corpusPath);
+		FileOutputFormat.setOutputPath(countAndFormatJob, countedNgramsOutputPath);
+
+		succeeded = countAndFormatJob.waitForCompletion(true);
+
+		if (!succeeded) {
+			System.err.println("First job failed");
+			System.exit(1);
+		}
 
 		conf.setLong("threshold", T);
 
@@ -70,14 +80,14 @@ public class LearningAlgorithm {
 		initialDistribution.setOutputFormatClass(SeqOutInitDist.class);
 		initialDistribution.setOutputKeyClass(Text.class);
 		initialDistribution.setOutputValueClass(FloatWritable.class);
-		FileInputFormat.addInputPath(initialDistribution, new Path(otherArgs[1]));
-		FileOutputFormat.setOutputPath(initialDistribution, new Path(otherArgs[2]));
+		FileInputFormat.addInputPath(initialDistribution, countedNgramsOutputPath);
+		FileOutputFormat.setOutputPath(initialDistribution, initialDistributionOutputPath);
 
-		boolean succeeded = initialDistribution.waitForCompletion(true);
+		succeeded = initialDistribution.waitForCompletion(true);
 
 		if (!succeeded) {
 			System.err.println("Second job failed");
-			System.exit(1);
+			System.exit(2);
 		}
 
 		Job wordInfoJob = new Job(conf, "word info");
@@ -90,17 +100,17 @@ public class LearningAlgorithm {
 		wordInfoJob.setOutputFormatClass(SeqOutFormatWord.class);
 		wordInfoJob.setOutputKeyClass(Text.class);
 		wordInfoJob.setOutputValueClass(FloatWritable.class);
-		FileInputFormat.addInputPath(wordInfoJob, new Path(otherArgs[1]));
-		FileOutputFormat.setOutputPath(wordInfoJob, new Path(otherArgs[2]));
-
+		FileInputFormat.addInputPath(wordInfoJob, countedNgramsOutputPath);
+		FileOutputFormat.setOutputPath(wordInfoJob, wordInfoOutputPath);
 
 		succeeded = wordInfoJob.waitForCompletion(true);
 
 		if (!succeeded) {
 			System.err.println("Third job failed");
-			System.exit(2);
+			System.exit(3);
 		}
-
+		
+		// TODO: word info and context info can run at the same time.
 
 		Job contextInfoJob = new Job(conf, "context info");
 		contextInfoJob.setJarByClass(LearningAlgorithm.class);
@@ -112,37 +122,80 @@ public class LearningAlgorithm {
 		contextInfoJob.setOutputFormatClass(SeqOutFormatContext.class);
 		contextInfoJob.setOutputKeyClass(Text.class);
 		contextInfoJob.setOutputValueClass(FloatWritable.class);
-		FileInputFormat.addInputPath(contextInfoJob, new Path(otherArgs[1]));
-		FileOutputFormat.setOutputPath(contextInfoJob, new Path(otherArgs[3]));
-
+		FileInputFormat.addInputPath(contextInfoJob, countedNgramsOutputPath);
+		FileOutputFormat.setOutputPath(contextInfoJob, contextInfoOutputPath);
 
 		succeeded = contextInfoJob.waitForCompletion(true);
 
 		if (!succeeded) {
 			System.err.println("Fourth job failed");
-			System.exit(2);
+			System.exit(4);
 		}
-		conf.set("mapred.textoutputformat.separator", ",");
-		Job joinJob = new Job(conf, "DataJoin");
-		joinJob.setJarByClass(LearningAlgorithm.class);
-		joinJob.setInputFormatClass(KeyTaggedValueTextInputFormat.class);
-		joinJob.setOutputFormatClass(TextOutputFormat.class);
-		joinJob.setMapperClass(ReduceSideJoin.MapClass.class);
-		joinJob.setReducerClass(ReduceSideJoin.ReduceClass.class);
-		FileInputFormat.addInputPath(joinJob, new Path(otherArgs[2]));
-		FileOutputFormat.setOutputPath(joinJob, new Path(otherArgs[4]));
-		joinJob.setOutputKeyClass(Text.class);
-		joinJob.setOutputValueClass(Text.class);
-		joinJob.setMapOutputKeyClass(Text.class);
-		joinJob.setMapOutputValueClass(TextTaggedValue.class);
-
-
-		succeeded = joinJob.waitForCompletion(true);
-
+		
+		Job wordJoinJob = new Job(conf, "word join");
+		wordJoinJob.setJarByClass(LearningAlgorithm.class);
+		wordJoinJob.setMapperClass(TaggingMapper.class);
+		wordJoinJob.setMapOutputKeyClass(Text.class);
+		wordJoinJob.setMapOutputValueClass(TextTaggedValue.class);
+		wordJoinJob.setReducerClass(WordJoinReducer.class);
+		wordJoinJob.setInputFormatClass(SequenceFileInputFormat.class);
+		wordJoinJob.setOutputFormatClass(SequenceFileOutputFormat.class);
+		wordJoinJob.setOutputKeyClass(Text.class);
+		wordJoinJob.setOutputValueClass(FloatWritable.class);
+		FileInputFormat.addInputPath(wordJoinJob, initialDistributionOutputPath);
+		FileInputFormat.addInputPath(wordJoinJob, wordInfoOutputPath);
+		FileOutputFormat.setOutputPath(wordJoinJob, wordJoinOutputPath);
+		
+		succeeded = wordJoinJob.waitForCompletion(true);
+		
 		if (!succeeded) {
 			System.err.println("Fifth job failed");
-			System.exit(2);
+			System.exit(5);
 		}
+		
+		Job wordSumJob = new Job(conf, "word sum");
+		wordSumJob.setJarByClass(LearningAlgorithm.class);
+		wordSumJob.setMapperClass(TagContextWordMapper.class);
+		wordSumJob.setMapOutputKeyClass(Text.class);
+		wordSumJob.setMapOutputValueClass(FloatWritable.class);
+		wordSumJob.setReducerClass(TagContextWordReducer.class);
+		wordSumJob.setInputFormatClass(SequenceFileInputFormat.class);
+		wordSumJob.setOutputFormatClass(SequenceFileOutputFormat.class);
+		wordSumJob.setOutputKeyClass(Text.class);
+		wordSumJob.setOutputValueClass(FloatWritable.class);
+		FileInputFormat.addInputPath(wordSumJob, wordJoinOutputPath);
+		FileOutputFormat.setOutputPath(wordSumJob, wordSumOutputPath);
+		
+		succeeded = wordSumJob.waitForCompletion(true);
+		
+		if (!succeeded) {
+			System.err.println("Sixth job failed");
+			System.exit(6);
+		}
+				
+//		conf.set("mapred.textoutputformat.separator", ",");
+//		Job joinJob = new Job(conf, "DataJoin");
+//		joinJob.setJarByClass(LearningAlgorithm.class);
+//		joinJob.setInputFormatClass(KeyTaggedValueTextInputFormat.class);
+//		//joinJob.setOutputFormatClass(TextOutputFormat.class);
+//		joinJob.setOutputFormatClass(SequenceFileOutputFormat.class);
+//		joinJob.setMapperClass(ReduceSideJoin.MapClass.class);
+//		//joinJob.setReducerClass(ReduceSideJoin.ReduceClass.class);
+//		FileInputFormat.addInputPath(joinJob, new Path(wordInfoOutputPath));
+//		FileInputFormat.addInputPath(joinJob, new Path(initialDistributionOutputPath));
+//		FileOutputFormat.setOutputPath(joinJob, new Path(tagContextOutputPath));
+//		joinJob.setOutputKeyClass(Text.class);
+//		joinJob.setOutputValueClass(TextTaggedValue.class);
+//		//joinJob.setOutputValueClass(Text.class);
+//		//joinJob.setMapOutputKeyClass(Text.class);
+//		//joinJob.setMapOutputValueClass(TextTaggedValue.class);
+//
+//		succeeded = joinJob.waitForCompletion(true);
+//
+//		if (!succeeded) {
+//			System.err.println("Fifth job failed");
+//			System.exit(5);
+//		}
 
 		//		  Job job = new Job(conf, "join");
 		//		  Path in = new Path(args[0]);
