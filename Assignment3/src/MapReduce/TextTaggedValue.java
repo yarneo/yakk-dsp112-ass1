@@ -1,10 +1,9 @@
 package MapReduce;
 
-import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.Text;
 
 
-public class TextTaggedValue extends TaggedValue<Text,FloatWritable> {
+public class TextTaggedValue extends TaggedValue<Text,TextFloatWritable> {
 	public TextTaggedValue() {
 		super();
 	}
@@ -13,14 +12,14 @@ public class TextTaggedValue extends TaggedValue<Text,FloatWritable> {
 		super(tag);
 	}
 
-	public TextTaggedValue(Text tag,FloatWritable value) {
+	public TextTaggedValue(Text tag,TextFloatWritable value) {
 		super(tag,value);
 	}
 
 	@Override
 	protected void init() {
 		tag = new Text();
-		value = new FloatWritable();
+		value = new TextFloatWritable();
 	}
 
 }
