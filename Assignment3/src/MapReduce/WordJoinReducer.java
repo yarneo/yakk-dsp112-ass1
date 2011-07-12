@@ -34,8 +34,10 @@ public class WordJoinReducer extends
 			
 			if (taggedValue.getTag().toString().equals("tag")) {
 				tags.add(ttv.getValue());
+				System.out.println("[tag] " + ttv.getValue().toString());
 			} else if (taggedValue.getTag().toString().equals("word")) {
 				contexts.add(ttv.getValue());
+				System.out.println("[word] " + ttv.getValue().toString());
 			} else {
 				// TODO: handle this case
 				System.out.println("epic fail 3");
