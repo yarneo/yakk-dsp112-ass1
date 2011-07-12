@@ -2,6 +2,7 @@ package MapReduce;
 import java.util.Date;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.LongWritable;
@@ -26,10 +27,11 @@ public class LearningAlgorithm {
 	 */
 	public static void main(String[] args) throws Exception {
 		Configuration conf = new Configuration();
+		FileSystem fs = FileSystem.get(conf);
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-		if (otherArgs.length != 8) {
+		if (otherArgs.length != 11) {
 			System.err.println(
-					"Usage: learningalgo <threshold> <inCorpus> <outNgrams> <outInitDist> <outWord> <outContext> <outWordJoin> <outWordSum>");
+					"Usage: learningalgo <threshold> <inCorpus> <outNgrams> <outInitDist> <outWord> <outContext> <outWordJoin> <outWordSum> <outContextJoin> <outContextSum> <outNormalize>");
 			System.exit(3);
 		}
 		System.out.println(new Date().toString());
@@ -42,6 +44,9 @@ public class LearningAlgorithm {
 		Path contextInfoOutputPath = new Path(otherArgs[5]);
 		Path wordJoinOutputPath = new Path(otherArgs[6]);
 		Path wordSumOutputPath = new Path(otherArgs[7]);
+		Path contextJoinOutputPath = new Path(otherArgs[8]);
+		Path contextSumOutputPath = new Path(otherArgs[9]);
+		Path normalizeOutputPath = new Path(otherArgs[10]);
 		
 		boolean succeeded = false;
 
@@ -89,7 +94,7 @@ public class LearningAlgorithm {
 			System.err.println("Second job failed");
 			System.exit(2);
 		}
-
+		
 		Job wordInfoJob = new Job(conf, "word info");
 		wordInfoJob.setJarByClass(LearningAlgorithm.class);
 		wordInfoJob.setMapperClass(WordInfoMapper.class);
@@ -132,46 +137,134 @@ public class LearningAlgorithm {
 			System.exit(4);
 		}
 		
-		Job wordJoinJob = new Job(conf, "word join");
-		wordJoinJob.setJarByClass(LearningAlgorithm.class);
-		wordJoinJob.setMapperClass(TaggingMapper.class);
-		wordJoinJob.setMapOutputKeyClass(Text.class);
-		wordJoinJob.setMapOutputValueClass(TextTaggedValue.class);
-		wordJoinJob.setReducerClass(WordJoinReducer.class);
-		wordJoinJob.setInputFormatClass(SequenceFileInputFormat.class);
-		wordJoinJob.setOutputFormatClass(SequenceFileOutputFormat.class);
-		wordJoinJob.setOutputKeyClass(Text.class);
-		wordJoinJob.setOutputValueClass(FloatWritable.class);
-		FileInputFormat.addInputPath(wordJoinJob, initialDistributionOutputPath);
-		FileInputFormat.addInputPath(wordJoinJob, wordInfoOutputPath);
-		FileOutputFormat.setOutputPath(wordJoinJob, wordJoinOutputPath);
-		
-		succeeded = wordJoinJob.waitForCompletion(true);
-		
-		if (!succeeded) {
-			System.err.println("Fifth job failed");
-			System.exit(5);
+		for (int i = 0; i < 10; i++) {						
+			Job wordJoinJob = new Job(conf, "word join");
+			wordJoinJob.setJarByClass(LearningAlgorithm.class);
+			wordJoinJob.setMapperClass(TaggingMapper.class);
+			wordJoinJob.setMapOutputKeyClass(Text.class);
+			wordJoinJob.setMapOutputValueClass(TextTaggedValue.class);
+			wordJoinJob.setReducerClass(WordJoinReducer.class);
+			wordJoinJob.setInputFormatClass(SequenceFileInputFormat.class);
+			wordJoinJob.setOutputFormatClass(SequenceFileOutputFormat.class);
+			wordJoinJob.setOutputKeyClass(Text.class);
+			wordJoinJob.setOutputValueClass(FloatWritable.class);
+			FileInputFormat.addInputPath(wordJoinJob, initialDistributionOutputPath);
+			FileInputFormat.addInputPath(wordJoinJob, wordInfoOutputPath);
+			FileOutputFormat.setOutputPath(wordJoinJob, wordJoinOutputPath);
+			
+			succeeded = wordJoinJob.waitForCompletion(true);
+			
+			if (!succeeded) {
+				System.err.println("Fifth job failed");
+				System.exit(5);
+			}
+			
+			Job wordSumJob = new Job(conf, "word sum");
+			wordSumJob.setJarByClass(LearningAlgorithm.class);
+			wordSumJob.setMapperClass(TagContextWordMapper.class);
+			wordSumJob.setMapOutputKeyClass(Text.class);
+			wordSumJob.setMapOutputValueClass(FloatWritable.class);
+			wordSumJob.setReducerClass(TagContextWordReducer.class);
+			wordSumJob.setInputFormatClass(SequenceFileInputFormat.class);
+			wordSumJob.setOutputFormatClass(SequenceFileOutputFormat.class);
+			wordSumJob.setOutputKeyClass(Text.class);
+			wordSumJob.setOutputValueClass(FloatWritable.class);
+			wordSumJob.setOutputFormatClass(SeqOutInitDist.class);
+			FileInputFormat.addInputPath(wordSumJob, wordJoinOutputPath);
+			FileOutputFormat.setOutputPath(wordSumJob, wordSumOutputPath);
+			
+			succeeded = wordSumJob.waitForCompletion(true);
+			
+			if (!succeeded) {
+				System.err.println("Sixth job failed");
+				System.exit(6);
+			}
+			
+			Job contextJoinJob = new Job(conf, "context join");
+			contextJoinJob.setJarByClass(LearningAlgorithm.class);
+			contextJoinJob.setMapperClass(ContextTaggingMapper.class);
+			contextJoinJob.setMapOutputKeyClass(Text.class);
+			contextJoinJob.setMapOutputValueClass(TextTaggedValue.class);
+			contextJoinJob.setReducerClass(ContextJoinReducer.class);
+			contextJoinJob.setInputFormatClass(SequenceFileInputFormat.class);
+			contextJoinJob.setOutputFormatClass(SequenceFileOutputFormat.class);
+			contextJoinJob.setOutputKeyClass(Text.class);
+			contextJoinJob.setOutputValueClass(FloatWritable.class);
+			FileInputFormat.addInputPath(contextJoinJob, wordSumOutputPath);
+			FileInputFormat.addInputPath(contextJoinJob, contextInfoOutputPath);
+			FileOutputFormat.setOutputPath(contextJoinJob, contextJoinOutputPath);
+			
+			succeeded = contextJoinJob.waitForCompletion(true);
+			
+			if (!succeeded) {
+				System.err.println("Seventh job failed");
+				System.exit(7);
+			}
+			
+			Job contextSumJob = new Job(conf, "context sum");
+			contextSumJob.setJarByClass(LearningAlgorithm.class);
+			contextSumJob.setMapperClass(TagContextWordMapper.class);
+			contextSumJob.setMapOutputKeyClass(Text.class);
+			contextSumJob.setMapOutputValueClass(FloatWritable.class);
+			contextSumJob.setReducerClass(TagContextWordReducer.class);
+			contextSumJob.setInputFormatClass(SequenceFileInputFormat.class);
+			contextSumJob.setOutputFormatClass(SequenceFileOutputFormat.class);
+			contextSumJob.setOutputKeyClass(Text.class);
+			contextSumJob.setOutputValueClass(FloatWritable.class);
+			contextSumJob.setOutputFormatClass(SeqOutInitDist.class);
+			FileInputFormat.addInputPath(contextSumJob, contextJoinOutputPath);
+			FileOutputFormat.setOutputPath(contextSumJob, contextSumOutputPath);
+			
+			succeeded = contextSumJob.waitForCompletion(true);
+			
+			if (!succeeded) {
+				System.err.println("Seventh job failed");
+				System.exit(7);
+			}
+			
+			Job normalizingJob = new Job(conf, "normalize");
+			normalizingJob.setJarByClass(LearningAlgorithm.class);
+			normalizingJob.setMapperClass(ContextTaggingMapper.class);
+			normalizingJob.setMapOutputKeyClass(Text.class);
+			normalizingJob.setMapOutputValueClass(TextTaggedValue.class);
+			normalizingJob.setReducerClass(NormalizingReducer.class);
+			normalizingJob.setInputFormatClass(SequenceFileInputFormat.class);
+			normalizingJob.setOutputFormatClass(SequenceFileOutputFormat.class);
+			normalizingJob.setOutputFormatClass(SeqOutInitDist.class);
+			normalizingJob.setOutputKeyClass(Text.class);
+			normalizingJob.setOutputValueClass(FloatWritable.class);
+			FileInputFormat.addInputPath(normalizingJob, contextSumOutputPath);
+			FileOutputFormat.setOutputPath(normalizingJob, normalizeOutputPath);
+			
+			succeeded = normalizingJob.waitForCompletion(true);
+			
+			if (!succeeded) {
+				System.err.println("Eighth job failed");
+				System.exit(8);
+			}
+			
+			if (!fs.delete(initialDistributionOutputPath, true)) {
+				System.out.println("Error deleting initial distribution.");
+			}			
+			if (!fs.delete(wordJoinOutputPath, true)) {
+				System.out.println("Error deleting word join.");		
+			}
+			if (!fs.delete(wordSumOutputPath, true)) {
+				System.out.println("Error deleting word sum.");		
+			}			
+			if (!fs.delete(contextJoinOutputPath, true)) {
+				System.out.println("Error deleting context join.");		
+			}
+			if (!fs.delete(contextSumOutputPath, true)) {
+				System.out.println("Error deleting context sum.");		
+			}
+			
+			if (!fs.rename(normalizeOutputPath, initialDistributionOutputPath)) {
+				System.out.println("Error renaming normalize output.");
+			}
 		}
+
 		
-		Job wordSumJob = new Job(conf, "word sum");
-		wordSumJob.setJarByClass(LearningAlgorithm.class);
-		wordSumJob.setMapperClass(TagContextWordMapper.class);
-		wordSumJob.setMapOutputKeyClass(Text.class);
-		wordSumJob.setMapOutputValueClass(FloatWritable.class);
-		wordSumJob.setReducerClass(TagContextWordReducer.class);
-		wordSumJob.setInputFormatClass(SequenceFileInputFormat.class);
-		wordSumJob.setOutputFormatClass(SequenceFileOutputFormat.class);
-		wordSumJob.setOutputKeyClass(Text.class);
-		wordSumJob.setOutputValueClass(FloatWritable.class);
-		FileInputFormat.addInputPath(wordSumJob, wordJoinOutputPath);
-		FileOutputFormat.setOutputPath(wordSumJob, wordSumOutputPath);
-		
-		succeeded = wordSumJob.waitForCompletion(true);
-		
-		if (!succeeded) {
-			System.err.println("Sixth job failed");
-			System.exit(6);
-		}
 				
 //		conf.set("mapred.textoutputformat.separator", ",");
 //		Job joinJob = new Job(conf, "DataJoin");
