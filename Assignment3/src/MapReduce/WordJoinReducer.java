@@ -33,11 +33,9 @@ public class WordJoinReducer extends
 							new FloatWritable(taggedValue.getValue().getValue().get())));
 			
 			if (taggedValue.getTag().toString().equals("tag")) {
-				tags.add(ttv.getValue());
-				System.out.println("[tag] " + ttv.getValue().toString());
+				tags.add(ttv.getValue());				
 			} else if (taggedValue.getTag().toString().equals("word")) {
-				contexts.add(ttv.getValue());
-				System.out.println("[word] " + ttv.getValue().toString());
+				contexts.add(ttv.getValue());				
 			} else {
 				// TODO: handle this case
 				System.out.println("epic fail 3");
