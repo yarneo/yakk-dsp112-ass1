@@ -4,21 +4,21 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
-public class TextFloatWritable implements Writable {
+public class TextDoubleWritable implements Writable {
 	private Text text;
-	private FloatWritable value;
+	private DoubleWritable value;
 	
-	public TextFloatWritable()
+	public TextDoubleWritable()
 	{
 		this.text = new Text();
-		this.value = new FloatWritable();
+		this.value = new DoubleWritable();
 	}
 	
-	public TextFloatWritable(Text t, FloatWritable f)
+	public TextDoubleWritable(Text t, DoubleWritable f)
 	{
 		this.text = t;
 		this.value = f;
@@ -50,7 +50,7 @@ public class TextFloatWritable implements Writable {
 		return this.text;
 	}
 	
-	public FloatWritable getValue()
+	public DoubleWritable getValue()
 	{
 		return this.value;
 	}

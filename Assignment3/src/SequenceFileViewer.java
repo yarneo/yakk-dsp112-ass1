@@ -24,7 +24,7 @@ public class SequenceFileViewer {
 		Writable value = (Writable) sfr.getValueClass().newInstance();
 
 		while (sfr.next(key, value)) {
-			System.out.println("Key: " + key.toString() + "\tValue: " + value.toString());                  
+			System.out.println("Key: " + key.toString() + "\tValue: " + value.toString());
 		}
 	}
 

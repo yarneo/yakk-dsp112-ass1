@@ -3,15 +3,15 @@ package MapReduce;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
 public class ContextTaggingMapper extends
-		Mapper<Text, FloatWritable, Text, TextTaggedValue> {
+		Mapper<Text, DoubleWritable, Text, TextTaggedValue> {
 	@Override
-    protected void map(Text key, FloatWritable value, Context context)
+    protected void map(Text key, DoubleWritable value, Context context)
     		throws IOException, InterruptedException
 	{
 		Path inputPath = ((FileSplit) context.getInputSplit()).getPath();
@@ -21,7 +21,7 @@ public class ContextTaggingMapper extends
 		Text joinKey = new Text(tokens[1]);
 		Text text = new Text(tokens[0]);
 		
-		TextTaggedValue v = new TextTaggedValue(tag, new TextFloatWritable(text, value));
+		TextTaggedValue v = new TextTaggedValue(tag, new TextDoubleWritable(text, value));
 		
 		context.write(joinKey, v);
 	}

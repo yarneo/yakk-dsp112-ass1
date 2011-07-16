@@ -9,7 +9,6 @@ package MapReduce;
 
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.StringTokenizer;
 // import org.apache.commons.logging.Log;
 // import org.apache.commons.logging.LogFactory;
