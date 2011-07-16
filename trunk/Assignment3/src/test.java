@@ -1,7 +1,10 @@
 
-	import dsp.tagger.TagDictionary;
+	import java.io.InputStream;
+
+import MapReduce.TagDictionarySingleton;
+import dsp.tagger.TagDictionary;
 	import dsp.tagger.BGUTagDictionary;
-	import dsp.tagger.Analysis;
+import dsp.tagger.Analysis;
 	 
 	 
 	public class test {
@@ -15,15 +18,28 @@
 //	        }
 	 
 	        try {
-	            TagDictionary tagger = new BGUTagDictionary("lexicon.txt","known-bitmasks.txt","swmap.txt","non-count-nouns.txt");
-	            System.out.println("בצלם: " + tagger.getTagsForWord("בצלם"));
+	        	InputStream lexiconStream = TagDictionarySingleton.class.getResourceAsStream("/lexicon");
+				InputStream knownBitmasksStream = TagDictionarySingleton.class.getResourceAsStream("/known-bitmasks");
+				InputStream swmapStream = TagDictionarySingleton.class.getResourceAsStream("/swmap");
+				InputStream noncountNounsStream = TagDictionarySingleton.class.getResourceAsStream("/non-count-nouns");
+				
+	            TagDictionary tagger = new BGUTagDictionary(lexiconStream, knownBitmasksStream, swmapStream, noncountNounsStream);
+	            
+	            String word = "ספר";
+	            //String word = "!\"";
+	            
+	            //System.out.println(word + ": " + tagger.getTagsForWord(word));
+	            System.out.println("Tags for " + word + ": ");
+	            for (String t : tagger.getTagsForWord(word)) {
+	            	System.out.println("\t" + t);
+	            }
 	            System.out.println();
 	            System.out.println("Similar-words based distribution:");
-	            for (Analysis<String> analysis : tagger.getTagsDistributionForWord("בצלם",false)) 
+	            for (Analysis<String> analysis : tagger.getTagsDistributionForWord(word,false)) 
 	                System.out.println("\t" + analysis.getTag() + ": " + analysis.getProb());
 	            System.out.println();
 	            System.out.println("Uniform distribution:");
-	            for (Analysis<String> analysis : tagger.getTagsDistributionForWord("בצלם",true)) 
+	            for (Analysis<String> analysis : tagger.getTagsDistributionForWord(word,true)) 
 	                System.out.println("\t" + analysis.getTag() + ": " + analysis.getProb());
 	        } catch (Exception e) { 
 	            e.printStackTrace();  

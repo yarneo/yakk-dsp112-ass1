@@ -2,21 +2,21 @@ package MapReduce;
 
 import java.io.IOException;
 
-import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 
 public class TagContextWordReducer extends
-		Reducer<Text, FloatWritable, Text, FloatWritable> {
+		Reducer<Text, DoubleWritable, Text, DoubleWritable> {
 	@Override
-	public void reduce(Text key, Iterable<FloatWritable> values, Context context) 
+	public void reduce(Text key, Iterable<DoubleWritable> values, Context context) 
 			throws IOException, InterruptedException
 	{
-		float sum = 0;
-		for (FloatWritable fw : values) {
-			sum += fw.get();
+		double sum = 0;
+		for (DoubleWritable dw : values) {
+			sum += dw.get();
 		}
-		context.write(key, new FloatWritable(sum));
+		context.write(key, new DoubleWritable(sum));
 	}
 
 }

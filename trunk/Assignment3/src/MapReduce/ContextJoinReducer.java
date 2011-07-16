@@ -4,36 +4,51 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 
+import dsp.tagger.AnalysisException;
+import dsp.tagger.TagDictionary;
+
 public class ContextJoinReducer extends
-		Reducer<Text, TextTaggedValue, Text, FloatWritable> {
+		Reducer<Text, TextTaggedValue, Text, DoubleWritable> {
 	
 	private float allow(String tag, String word)
 	{
-		return 1; // TODO: implement with BGUTagDictionary
+		TagDictionary tagger = TagDictionarySingleton.getInstance();
+		
+		try {
+			// TODO: "-" prefix in tags from getTagsForWord.
+			if (tagger.getTagsForWord(word).contains(tag) || tagger.getTagsForWord(word).contains("-" + tag)) {
+				return 1;
+			} else {
+				return 0;
+			}
+		} catch (AnalysisException ae) {
+			ae.printStackTrace();
+			return 0;
+		}				
 	}
 	
 	@Override
 	public void reduce(Text key, Iterable<TextTaggedValue> taggedValues, Context context) 
 			throws IOException, InterruptedException 
 	{
-		List<TextFloatWritable> tags = new ArrayList<TextFloatWritable>();
-		List<TextFloatWritable> words = new ArrayList<TextFloatWritable>();
+		List<TextDoubleWritable> tags = new ArrayList<TextDoubleWritable>();
+		List<TextDoubleWritable> words = new ArrayList<TextDoubleWritable>();
 		
 		for (TextTaggedValue taggedValue : taggedValues) {
 			// deep copy since Hadoop recycles Writables during the iteration.
 			TextTaggedValue ttv = new TextTaggedValue(
 					new Text(taggedValue.getTag()),
-					new TextFloatWritable(
+					new TextDoubleWritable(
 							new Text(taggedValue.getValue().getText()),
-							new FloatWritable(taggedValue.getValue().getValue().get())));
+							new DoubleWritable(taggedValue.getValue().getValue().get())));
 			
 			if (taggedValue.getTag().toString().equals("tag")) {
 				tags.add(ttv.getValue());
-			} else if (taggedValue.getTag().toString().equals("context")) {
+			} else if (taggedValue.getTag().toString().equals("word")) {
 				words.add(ttv.getValue());
 			} else {
 				// TODO: handle this case
@@ -41,18 +56,18 @@ public class ContextJoinReducer extends
 			}	
 		}
 		
-		for (TextFloatWritable tagContext : tags) {
-			for (TextFloatWritable contextWord : words) {
+		for (TextDoubleWritable tagContext : tags) {
+			for (TextDoubleWritable contextWord : words) {
 				
 				
 				String tag = tagContext.getText().toString();
 				String word = contextWord.getText().toString();
 								
-				float f = tagContext.getValue().get() * contextWord.getValue().get() * allow(tag, word);;
+				double f = tagContext.getValue().get() * contextWord.getValue().get() * allow(tag, word);;
 				
 				context.write(
 						new Text(tag + "-,-" + word),
-						new FloatWritable(f));
+						new DoubleWritable(f));
 			}	
 		}
 	}

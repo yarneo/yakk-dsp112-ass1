@@ -2,12 +2,9 @@ package MapReduce;
 
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.IOException;
- 
+import java.io.IOException; 
  
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableComparable;
- 
  
 public abstract class TaggedValue<T extends Writable,V extends Writable> implements Writable {
  
@@ -43,17 +40,12 @@ public abstract class TaggedValue<T extends Writable,V extends Writable> impleme
         tag.write(data);
         value.write(data);
     }
+    
  
     public String toString() {
         return tag + ":" + value;
     }
- 
-    public boolean equals(Object o) {
-        TaggedValue<T,V> other = (TaggedValue<T,V>)o;
-        return tag.equals(other.tag) && value.equals(other.value);
-    }
- 
- 
+
     public T getTag() { return tag; }
     public V getValue() { return value; }
     public void setValue(V value) { this.value = value; }

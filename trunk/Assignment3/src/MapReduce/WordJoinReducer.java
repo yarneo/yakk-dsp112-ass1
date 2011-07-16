@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 
 public class WordJoinReducer extends
-		Reducer<Text, TextTaggedValue, Text, FloatWritable> {
+		Reducer<Text, TextTaggedValue, Text, DoubleWritable> {
 	@Override
 	public void reduce(Text key, Iterable<TextTaggedValue> taggedValues, Context context) 
 			throws IOException, InterruptedException 
@@ -20,21 +20,21 @@ public class WordJoinReducer extends
 		// for each tag|word
 		// .. emit word, tag|context as tag|word * word|context for each word|context
 		
-		List<TextFloatWritable> tags = new ArrayList<TextFloatWritable>();
-		List<TextFloatWritable> contexts = new ArrayList<TextFloatWritable>();
+		List<TextDoubleWritable> tags = new ArrayList<TextDoubleWritable>();
+		List<TextDoubleWritable> contexts = new ArrayList<TextDoubleWritable>();
 		
 		for (TextTaggedValue taggedValue : taggedValues)
 		{
 			// deep copy since Hadoop recycles Writables during the iteration.
 			TextTaggedValue ttv = new TextTaggedValue(
 					new Text(taggedValue.getTag()),
-					new TextFloatWritable(
+					new TextDoubleWritable(
 							new Text(taggedValue.getValue().getText()),
-							new FloatWritable(taggedValue.getValue().getValue().get())));
+							new DoubleWritable(taggedValue.getValue().getValue().get())));
 			
 			if (taggedValue.getTag().toString().equals("tag")) {
 				tags.add(ttv.getValue());				
-			} else if (taggedValue.getTag().toString().equals("word")) {
+			} else if (taggedValue.getTag().toString().equals("context")) {
 				contexts.add(ttv.getValue());				
 			} else {
 				// TODO: handle this case
@@ -42,13 +42,13 @@ public class WordJoinReducer extends
 			}			
 		}		
 		
-		for (TextFloatWritable tagWord : tags) {
-			for (TextFloatWritable wordContext : contexts) {
-				float f = tagWord.getValue().get() * wordContext.getValue().get();
+		for (TextDoubleWritable tagWord : tags) {
+			for (TextDoubleWritable wordContext : contexts) {
+				double f = tagWord.getValue().get() * wordContext.getValue().get();
 				
 				context.write(
 						new Text(tagWord.getText().toString() + "-,-" + wordContext.getText().toString()),
-						new FloatWritable(f));
+						new DoubleWritable(f));
 			}	
 		}
 	}
