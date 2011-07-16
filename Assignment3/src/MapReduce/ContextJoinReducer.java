@@ -63,7 +63,7 @@ public class ContextJoinReducer extends
 				String tag = tagContext.getText().toString();
 				String word = contextWord.getText().toString();
 								
-				double f = tagContext.getValue().get() * contextWord.getValue().get() * allow(tag, word);;
+				double f = tagContext.getValue().get() * contextWord.getValue().get() * allow(tag, word);
 				
 				context.write(
 						new Text(tag + "-,-" + word),

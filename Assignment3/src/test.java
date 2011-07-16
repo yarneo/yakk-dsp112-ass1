@@ -25,7 +25,7 @@ import dsp.tagger.Analysis;
 				
 	            TagDictionary tagger = new BGUTagDictionary(lexiconStream, knownBitmasksStream, swmapStream, noncountNounsStream);
 	            
-	            String word = "ספר";
+	            String word = "\"אברהם";
 	            //String word = "!\"";
 	            
 	            //System.out.println(word + ": " + tagger.getTagsForWord(word));
