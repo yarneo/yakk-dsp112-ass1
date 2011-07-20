@@ -16,31 +16,26 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.LongWritable;
 
-/**
- *
- * @author yarneo
- */
 public class WordInfoMapper extends Mapper<Text,LongWritable,Text,Pair> {
-
     @Override
 	protected void map(Text key, LongWritable value, Context context) throws IOException, InterruptedException {
-		String[] strArr = key.toString().split("\\s+");
-		for(int i=0;i<strArr.length;i++) {
-			String outStr = "";
+		String[] ngramWords = key.toString().split("\\s+");
+		
+		for(int i = 0; i < ngramWords.length; i++) {
+			String outContext = "";
 			String outWord = "";
-			for(int j=0;j<strArr.length;j++) {
-				if(i==j) {
-					outStr += "_____";
-					outWord = strArr[j];
+			for(int j = 0; j < ngramWords.length; j++) {
+				if(i == j) {
+					outContext += "_____";
+					outWord = ngramWords[j];
+				} else {
+					outContext += ngramWords[j];
 				}
-				else {
-					outStr += strArr[j];
-				}
-				if(j != (strArr.length-1)) {
-					outStr += " ";
+				if(j != (ngramWords.length - 1)) {
+					outContext += " ";
 				}
 			}
-			context.write(new Text(outWord), new Pair(new Text(outStr),value));
+			context.write(new Text(outWord), new Pair(new Text(outContext), value));
 		}
 	}
 }

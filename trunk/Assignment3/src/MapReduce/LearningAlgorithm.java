@@ -71,7 +71,7 @@ public class LearningAlgorithm {
 			System.exit(1);
 		}
 
-		conf.setBoolean("uniform", true);
+		conf.setBoolean("uniform", false);
 		conf.setLong("threshold", T);
 
 		Job initialDistribution = new Job(conf, "initial distribution");
@@ -136,7 +136,7 @@ public class LearningAlgorithm {
 			System.exit(4);
 		}
 		
-		for (int i = 0; i < 1; i++) {						
+		for (int i = 0; i < 10; i++) {						
 			Job wordJoinJob = new Job(conf, "word join");
 			wordJoinJob.setJarByClass(LearningAlgorithm.class);
 			wordJoinJob.setMapperClass(TaggingMapper.class);
@@ -241,7 +241,7 @@ public class LearningAlgorithm {
 				System.err.println("Eighth job failed");
 				System.exit(8);
 			}
-			/*
+			
 			if (!fs.delete(initialDistributionOutputPath, true)) {
 				System.out.println("Error deleting initial distribution.");
 			}			
@@ -260,7 +260,11 @@ public class LearningAlgorithm {
 			
 			if (!fs.rename(normalizeOutputPath, initialDistributionOutputPath)) {
 				System.out.println("Error renaming normalize output.");
-			}*/
+			}
+		}
+		
+		if (!fs.rename(initialDistributionOutputPath, normalizeOutputPath)) {
+			System.out.println("Error renaming final normalized output.");
 		}
 		
 		Job finalOutputJob = new Job(conf, "final output");
