@@ -8,29 +8,8 @@ import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 
-import dsp.tagger.AnalysisException;
-import dsp.tagger.TagDictionary;
-
 public class ContextJoinReducer extends
-		Reducer<Text, TextTaggedValue, Text, DoubleWritable> {
-	
-	private float allow(String tag, String word)
-	{
-		TagDictionary tagger = TagDictionarySingleton.getInstance();
-		
-		try {
-			// TODO: "-" prefix in tags from getTagsForWord.
-			if (tagger.getTagsForWord(word).contains(tag) || tagger.getTagsForWord(word).contains("-" + tag)) {
-				return 1;
-			} else {
-				return 0;
-			}
-		} catch (AnalysisException ae) {
-			ae.printStackTrace();
-			return 0;
-		}				
-	}
-	
+		Reducer<Text, TextTaggedValue, Text, DoubleWritable> {	
 	@Override
 	public void reduce(Text key, Iterable<TextTaggedValue> taggedValues, Context context) 
 			throws IOException, InterruptedException 
@@ -63,7 +42,7 @@ public class ContextJoinReducer extends
 				String tag = tagContext.getText().toString();
 				String word = contextWord.getText().toString();
 								
-				double f = tagContext.getValue().get() * contextWord.getValue().get() * allow(tag, word);
+				double f = tagContext.getValue().get() * contextWord.getValue().get() * Common.allow(tag, word);
 				
 				context.write(
 						new Text(tag + "-,-" + word),
