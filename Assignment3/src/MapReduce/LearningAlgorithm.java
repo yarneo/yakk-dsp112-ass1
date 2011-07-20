@@ -26,9 +26,9 @@ public class LearningAlgorithm {
 		Configuration conf = new Configuration();
 		FileSystem fs = FileSystem.get(conf);
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-		if (otherArgs.length != 12) {
+		if (otherArgs.length != 13) {
 			System.err.println(
-					"Usage: learningalgo <threshold> <inCorpus> <outNgrams> <outInitDist> <outWord> <outContext> <outWordJoin> <outWordSum> <outContextJoin> <outContextSum> <outNormalize> <out>");
+					"Usage: learningalgo <threshold> <inCorpus> <outNgrams> <outInitDist> <outWord> <outContext> <outWordJoin> <outWordSum> <outContextJoin> <outContextSum> <outNormalize> <out> <initialdist>");
 			System.exit(3);
 		}
 		System.out.println(new Date().toString());
@@ -70,8 +70,12 @@ public class LearningAlgorithm {
 			System.err.println("First job failed");
 			System.exit(1);
 		}
-
+		if(Integer.parseInt(otherArgs[11]) == 1) {
 		conf.setBoolean("uniform", false);
+		}
+		else {
+			conf.setBoolean("uniform", true);
+		}
 		conf.setLong("threshold", T);
 
 		Job initialDistribution = new Job(conf, "initial distribution");
