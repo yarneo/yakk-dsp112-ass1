@@ -45,8 +45,8 @@ public class Compare {
 		}
 		return r;
 	}
-	static public boolean allow(String word, String tag) {//TODO
-		return true;
+	static public boolean allow(String word, String tag) {
+		return MapReduce.Common.allow(tag, word) == 1;
 	}
 
 	static public boolean highCase(double num) {
