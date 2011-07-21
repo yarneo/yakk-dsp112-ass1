@@ -55,8 +55,8 @@ public class LearningAlgorithm {
 		countAndFormatJob.setMapOutputValueClass(LongWritable.class);
 		//countAndFormatJob.setReducerClass(RowReducer.class);
 		countAndFormatJob.setReducerClass(LongSumReducer.class);
-		FileInputFormat.setMinInputSplitSize(countAndFormatJob, 1024L*10000);
-		FileInputFormat.setMaxInputSplitSize(countAndFormatJob, 1024L*20000);
+		//FileInputFormat.setMinInputSplitSize(countAndFormatJob, 1024L*10000);
+		//FileInputFormat.setMaxInputSplitSize(countAndFormatJob, 1024L*20000);
 		countAndFormatJob.setInputFormatClass(SequenceFileInputFormat.class);
 		countAndFormatJob.setOutputFormatClass(SequenceFileOutputFormat.class);
 		countAndFormatJob.setOutputKeyClass(Text.class);
@@ -90,14 +90,9 @@ public class LearningAlgorithm {
 		initialDistribution.setOutputValueClass(DoubleWritable.class);
 		FileInputFormat.addInputPath(initialDistribution, countedNgramsOutputPath);
 		FileOutputFormat.setOutputPath(initialDistribution, initialDistributionOutputPath);
-
-		succeeded = initialDistribution.waitForCompletion(true);
-
-		if (!succeeded) {
-			System.err.println("Second job failed");
-			System.exit(2);
-		}
 		
+		initialDistribution.submit();
+				
 		Job wordInfoJob = new Job(conf, "word info");
 		wordInfoJob.setJarByClass(LearningAlgorithm.class);
 		wordInfoJob.setMapperClass(WordInfoMapper.class);
@@ -110,15 +105,8 @@ public class LearningAlgorithm {
 		wordInfoJob.setOutputValueClass(DoubleWritable.class);
 		FileInputFormat.addInputPath(wordInfoJob, countedNgramsOutputPath);
 		FileOutputFormat.setOutputPath(wordInfoJob, wordInfoOutputPath);
-
-		succeeded = wordInfoJob.waitForCompletion(true);
-
-		if (!succeeded) {
-			System.err.println("Third job failed");
-			System.exit(3);
-		}
 		
-		// TODO: word info and context info can run at the same time.
+		wordInfoJob.submit();		
 
 		Job contextInfoJob = new Job(conf, "context info");
 		contextInfoJob.setJarByClass(LearningAlgorithm.class);
@@ -132,6 +120,20 @@ public class LearningAlgorithm {
 		contextInfoJob.setOutputValueClass(DoubleWritable.class);
 		FileInputFormat.addInputPath(contextInfoJob, countedNgramsOutputPath);
 		FileOutputFormat.setOutputPath(contextInfoJob, contextInfoOutputPath);
+		
+		succeeded = initialDistribution.waitForCompletion(true);
+
+		if (!succeeded) {
+			System.err.println("Second job failed");
+			System.exit(2);
+		}
+		
+		succeeded = wordInfoJob.waitForCompletion(true);
+
+		if (!succeeded) {
+			System.err.println("Third job failed");
+			System.exit(3);
+		}
 
 		succeeded = contextInfoJob.waitForCompletion(true);
 
@@ -196,7 +198,7 @@ public class LearningAlgorithm {
 			FileInputFormat.addInputPath(contextJoinJob, wordSumOutputPath);
 			FileInputFormat.addInputPath(contextJoinJob, wordInfoOutputPath);
 			FileOutputFormat.setOutputPath(contextJoinJob, contextJoinOutputPath);
-			
+
 			succeeded = contextJoinJob.waitForCompletion(true);
 			
 			if (!succeeded) {
