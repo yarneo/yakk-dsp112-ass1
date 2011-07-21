@@ -70,7 +70,7 @@ public class LearningAlgorithm {
 			System.err.println("First job failed");
 			System.exit(1);
 		}
-		if(Integer.parseInt(otherArgs[11]) == 1) {
+		if(Integer.parseInt(otherArgs[12]) == 1) {
 		conf.setBoolean("uniform", false);
 		}
 		else {
