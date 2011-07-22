@@ -46,9 +46,12 @@ public class WordJoinReducer extends
 			for (TextDoubleWritable wordContext : contexts) {
 				double f = tagWord.getValue().get() * wordContext.getValue().get();
 				
-				context.write(
-						new Text(tagWord.getText().toString() + "-,-" + wordContext.getText().toString()),
-						new DoubleWritable(f));
+				if (f != 0) {
+					context.write(
+							new Text(tagWord.getText().toString() + "-,-" + wordContext.getText().toString()),
+							new DoubleWritable(f));	
+				}
+				
 			}	
 		}
 	}
