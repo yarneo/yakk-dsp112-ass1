@@ -280,7 +280,7 @@ public class LearningAlgorithm {
 		finalOutputJob.setJarByClass(LearningAlgorithm.class);
 		finalOutputJob.setInputFormatClass(SequenceFileInputFormat.class);
 		finalOutputJob.setOutputFormatClass(TextOutputFormat.class);
-		finalOutputJob.setMapperClass(TaggingMapper.class);
+		finalOutputJob.setMapperClass(FinalOutputMapper.class);
 		finalOutputJob.setMapOutputKeyClass(Text.class);
 		finalOutputJob.setMapOutputValueClass(TextTaggedValue.class);
 		finalOutputJob.setReducerClass(FinalOutputReducer.class);
