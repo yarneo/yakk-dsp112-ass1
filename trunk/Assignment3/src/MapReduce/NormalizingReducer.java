@@ -31,9 +31,11 @@ public class NormalizingReducer extends
 			for (TextDoubleWritable tfw : tags) {
 				double v = tfw.getValue().get() / sum;
 				
-				context.write(
-					new Text(key.toString() + "-,-" + tfw.getText().toString() ),
-					new DoubleWritable(v));
+				if (v != 0) {
+					context.write(
+							new Text(key.toString() + "-,-" + tfw.getText().toString()),
+							new DoubleWritable(v));	
+				}				
 			}	
 		}
 		

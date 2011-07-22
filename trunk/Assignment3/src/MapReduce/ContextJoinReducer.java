@@ -44,9 +44,11 @@ public class ContextJoinReducer extends
 								
 				double f = tagContext.getValue().get() * contextWord.getValue().get() * Common.allow(tag, word);
 				
-				context.write(
-						new Text(tag + "-,-" + word),
-						new DoubleWritable(f));
+				if (f != 0) {
+					context.write(
+							new Text(tag + "-,-" + word),
+							new DoubleWritable(f));		
+				}				
 			}	
 		}
 	}
