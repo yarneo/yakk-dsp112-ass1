@@ -55,6 +55,7 @@ public class LearningAlgorithm {
 		countAndFormatJob.setMapOutputValueClass(LongWritable.class);
 		//countAndFormatJob.setReducerClass(RowReducer.class);
 		countAndFormatJob.setReducerClass(LongSumReducer.class);
+		countAndFormatJob.setCombinerClass(LongSumReducer.class);
 		//FileInputFormat.setMinInputSplitSize(countAndFormatJob, 1024L*10000);
 		//FileInputFormat.setMaxInputSplitSize(countAndFormatJob, 1024L*20000);
 		countAndFormatJob.setInputFormatClass(SequenceFileInputFormat.class);
@@ -170,6 +171,7 @@ public class LearningAlgorithm {
 			wordSumJob.setMapOutputKeyClass(Text.class);
 			wordSumJob.setMapOutputValueClass(DoubleWritable.class);
 			wordSumJob.setReducerClass(TagContextWordReducer.class);
+			wordSumJob.setCombinerClass(TagContextWordReducer.class);
 			wordSumJob.setInputFormatClass(SequenceFileInputFormat.class);
 			wordSumJob.setOutputFormatClass(SequenceFileOutputFormat.class);
 			wordSumJob.setOutputKeyClass(Text.class);
@@ -212,6 +214,7 @@ public class LearningAlgorithm {
 			contextSumJob.setMapOutputKeyClass(Text.class);
 			contextSumJob.setMapOutputValueClass(DoubleWritable.class);
 			contextSumJob.setReducerClass(TagContextWordReducer.class);
+			contextSumJob.setCombinerClass(TagContextWordReducer.class);
 			contextSumJob.setInputFormatClass(SequenceFileInputFormat.class);
 			contextSumJob.setOutputFormatClass(SequenceFileOutputFormat.class);
 			contextSumJob.setOutputKeyClass(Text.class);
