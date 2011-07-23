@@ -19,57 +19,57 @@ import org.apache.hadoop.util.ReflectionUtils;
 
 
 public class SeqOutFormatWord<K,V> extends SequenceFileOutputFormat<K,V> {
-	  public RecordWriter<K, V> 
-      getRecordWriter(TaskAttemptContext context
-                      ) throws IOException, InterruptedException {
- Configuration conf = context.getConfiguration();
- 
- CompressionCodec codec = null;
- CompressionType compressionType = CompressionType.NONE;
- if (getCompressOutput(context)) {
-   // find the kind of compression to do
-   compressionType = getOutputCompressionType(context);
+	public RecordWriter<K, V> 
+	getRecordWriter(TaskAttemptContext context
+			) throws IOException, InterruptedException {
+		Configuration conf = context.getConfiguration();
 
-   // find the right codec
-   Class<?> codecClass = getOutputCompressorClass(context, 
-                                                  DefaultCodec.class);
-   codec = (CompressionCodec) 
-     ReflectionUtils.newInstance(codecClass, conf);
- }
- // get the path of the temporary output file 
- FileOutputCommitter committer = 
-     (FileOutputCommitter) getOutputCommitter(context);
- Path file = new Path(committer.getWorkPath(), getUniqueFile(context, "word", 
-                                                          ""));
- FileSystem fs = file.getFileSystem(conf);
- final SequenceFile.Writer out = 
-   SequenceFile.createWriter(fs, conf, file,
-                             context.getOutputKeyClass(),
-                             context.getOutputValueClass(),
-                             compressionType,
-                             codec,
-                             context);
+		CompressionCodec codec = null;
+		CompressionType compressionType = CompressionType.NONE;
+		if (getCompressOutput(context)) {
+			// find the kind of compression to do
+			compressionType = getOutputCompressionType(context);
 
- return new RecordWriter<K, V>() {
+			// find the right codec
+			Class<?> codecClass = getOutputCompressorClass(context, 
+					DefaultCodec.class);
+			codec = (CompressionCodec) 
+					ReflectionUtils.newInstance(codecClass, conf);
+		}
+		// get the path of the temporary output file 
+		FileOutputCommitter committer = 
+				(FileOutputCommitter) getOutputCommitter(context);
+		Path file = new Path(committer.getWorkPath(), getUniqueFile(context, "word", 
+				""));
+		FileSystem fs = file.getFileSystem(conf);
+		final SequenceFile.Writer out = 
+				SequenceFile.createWriter(fs, conf, file,
+						context.getOutputKeyClass(),
+						context.getOutputValueClass(),
+						compressionType,
+						codec,
+						context);
 
-     public void write(K key, V value)
-       throws IOException {
+		return new RecordWriter<K, V>() {
 
-       out.append(key, value);
-     }
+			public void write(K key, V value)
+					throws IOException {
 
-     public void close(TaskAttemptContext context) throws IOException { 
-       out.close();
-     }
-   };
-}
-	  
-	  public void checkOutputSpecs(JobContext job
-      ) throws IOException{
-// Ensure that the output directory is set and not already there
-Path outDir = getOutputPath(job);
-if (outDir == null) {
-throw new InvalidJobConfException("Output directory not set.");
-}
-}
+				out.append(key, value);
+			}
+
+			public void close(TaskAttemptContext context) throws IOException { 
+				out.close();
+			}
+		};
+	}
+
+	public void checkOutputSpecs(JobContext job
+			) throws IOException{
+		// Ensure that the output directory is set and not already there
+		Path outDir = getOutputPath(job);
+		if (outDir == null) {
+			throw new InvalidJobConfException("Output directory not set.");
+		}
+	}
 }
