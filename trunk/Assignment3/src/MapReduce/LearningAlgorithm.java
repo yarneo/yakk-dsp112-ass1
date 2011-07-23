@@ -26,9 +26,9 @@ public class LearningAlgorithm {
 		Configuration conf = new Configuration();
 		FileSystem fs = FileSystem.get(conf);
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-		if (otherArgs.length != 13) {
+		if (otherArgs.length != 14) {
 			System.err.println(
-					"Usage: learningalgo <threshold> <inCorpus> <outNgrams> <outInitDist> <outWord> <outContext> <outWordJoin> <outWordSum> <outContextJoin> <outContextSum> <outNormalize> <out> <initialdist>");
+					"Usage: learningalgo <threshold> <inCorpus> <outNgrams> <outInitDist> <outWord> <outContext> <outWordJoin> <outWordSum> <outContextJoin> <outContextSum> <outNormalizeSum> <outNormalize> <out> <initialdist>");
 			System.exit(3);
 		}
 		System.out.println(new Date().toString());
@@ -43,8 +43,15 @@ public class LearningAlgorithm {
 		Path wordSumOutputPath = new Path(otherArgs[7]);
 		Path contextJoinOutputPath = new Path(otherArgs[8]);
 		Path contextSumOutputPath = new Path(otherArgs[9]);
-		Path normalizeOutputPath = new Path(otherArgs[10]);
-		Path finalOutputPath = new Path(otherArgs[11]);
+		Path normalizeSumPath = new Path(otherArgs[10]);
+		Path normalizeOutputPath = new Path(otherArgs[11]);
+		Path finalOutputPath = new Path(otherArgs[12]);
+		boolean uniform;
+		if(Integer.parseInt(otherArgs[13]) == 1) {
+			uniform = false;
+		} else {
+			uniform = true;
+		}		
 		
 		boolean succeeded = false;
 
@@ -71,12 +78,8 @@ public class LearningAlgorithm {
 			System.err.println("First job failed");
 			System.exit(1);
 		}
-		if(Integer.parseInt(otherArgs[12]) == 1) {
-		conf.setBoolean("uniform", false);
-		}
-		else {
-			conf.setBoolean("uniform", true);
-		}
+
+		conf.setBoolean("uniform", uniform);
 		conf.setLong("threshold", T);
 
 		Job initialDistribution = new Job(conf, "initial distribution");
@@ -143,12 +146,15 @@ public class LearningAlgorithm {
 			System.exit(4);
 		}
 		
-		for (int i = 0; i < 10; i++) {						
+		for (int i = 0; i < 10; i++) {
 			Job wordJoinJob = new Job(conf, "word join");
 			wordJoinJob.setJarByClass(LearningAlgorithm.class);
 			wordJoinJob.setMapperClass(TaggingMapper.class);
 			wordJoinJob.setMapOutputKeyClass(Text.class);
 			wordJoinJob.setMapOutputValueClass(TextTaggedValue.class);
+			wordJoinJob.setPartitionerClass(WordJoinPartitioner.class);
+			wordJoinJob.setGroupingComparatorClass(WordJoinGroupComparator.class);
+			wordJoinJob.setSortComparatorClass(WordJoinSortComparator.class);
 			wordJoinJob.setReducerClass(WordJoinReducer.class);
 			wordJoinJob.setInputFormatClass(SequenceFileInputFormat.class);
 			wordJoinJob.setOutputFormatClass(SequenceFileOutputFormat.class);
@@ -164,7 +170,7 @@ public class LearningAlgorithm {
 				System.err.println("Fifth job failed");
 				System.exit(5);
 			}
-			
+						
 			Job wordSumJob = new Job(conf, "word sum");
 			wordSumJob.setJarByClass(LearningAlgorithm.class);
 			wordSumJob.setMapperClass(TagContextWordMapper.class);
@@ -172,8 +178,7 @@ public class LearningAlgorithm {
 			wordSumJob.setMapOutputValueClass(DoubleWritable.class);
 			wordSumJob.setReducerClass(TagContextWordReducer.class);
 			wordSumJob.setCombinerClass(TagContextWordReducer.class);
-			wordSumJob.setInputFormatClass(SequenceFileInputFormat.class);
-			wordSumJob.setOutputFormatClass(SequenceFileOutputFormat.class);
+			wordSumJob.setInputFormatClass(SequenceFileInputFormat.class);			
 			wordSumJob.setOutputKeyClass(Text.class);
 			wordSumJob.setOutputValueClass(DoubleWritable.class);
 			wordSumJob.setOutputFormatClass(SeqOutInitDist.class);
@@ -192,7 +197,10 @@ public class LearningAlgorithm {
 			contextJoinJob.setMapperClass(ContextTaggingMapper.class);
 			contextJoinJob.setMapOutputKeyClass(Text.class);
 			contextJoinJob.setMapOutputValueClass(TextTaggedValue.class);
-			contextJoinJob.setReducerClass(ContextJoinReducer.class);
+			contextJoinJob.setReducerClass(ContextJoinReducer.class);			
+			contextJoinJob.setPartitionerClass(WordJoinPartitioner.class);
+			contextJoinJob.setGroupingComparatorClass(WordJoinGroupComparator.class);
+			contextJoinJob.setSortComparatorClass(WordJoinSortComparator.class);
 			contextJoinJob.setInputFormatClass(SequenceFileInputFormat.class);
 			contextJoinJob.setOutputFormatClass(SequenceFileOutputFormat.class);
 			contextJoinJob.setOutputKeyClass(Text.class);
@@ -213,13 +221,12 @@ public class LearningAlgorithm {
 			contextSumJob.setMapperClass(TagContextWordMapper.class);
 			contextSumJob.setMapOutputKeyClass(Text.class);
 			contextSumJob.setMapOutputValueClass(DoubleWritable.class);
-			contextSumJob.setReducerClass(TagContextWordReducer.class);
+			contextSumJob.setReducerClass(ContextSumReducer.class);
 			contextSumJob.setCombinerClass(TagContextWordReducer.class);
 			contextSumJob.setInputFormatClass(SequenceFileInputFormat.class);
-			contextSumJob.setOutputFormatClass(SequenceFileOutputFormat.class);
+			contextSumJob.setOutputFormatClass(SeqOutFormatContext.class);
 			contextSumJob.setOutputKeyClass(Text.class);
-			contextSumJob.setOutputValueClass(DoubleWritable.class);
-			contextSumJob.setOutputFormatClass(SeqOutInitDist.class);
+			contextSumJob.setOutputValueClass(TextDoubleWritable.class);			
 			FileInputFormat.addInputPath(contextSumJob, contextJoinOutputPath);
 			FileOutputFormat.setOutputPath(contextSumJob, contextSumOutputPath);
 			
@@ -230,27 +237,50 @@ public class LearningAlgorithm {
 				System.exit(7);
 			}
 			
+			Job normalizingSumJob = new Job(conf, "normalize sum");
+			normalizingSumJob.setJarByClass(LearningAlgorithm.class);
+			normalizingSumJob.setMapperClass(NormalizingSumMapper.class);
+			normalizingSumJob.setMapOutputKeyClass(Text.class);
+			normalizingSumJob.setMapOutputValueClass(TextDoubleWritable.class);
+			normalizingSumJob.setCombinerClass(NormalizingSumReducer.class);
+			normalizingSumJob.setReducerClass(NormalizingSumReducer.class);
+			normalizingSumJob.setInputFormatClass(SequenceFileInputFormat.class);
+			normalizingSumJob.setOutputFormatClass(SeqOutInitDist.class);
+			normalizingSumJob.setOutputKeyClass(Text.class);
+			normalizingSumJob.setOutputValueClass(TextDoubleWritable.class);
+			FileInputFormat.addInputPath(normalizingSumJob, contextSumOutputPath);
+			FileOutputFormat.setOutputPath(normalizingSumJob, normalizeSumPath);
+			
+			succeeded = normalizingSumJob.waitForCompletion(true);
+			if (!succeeded) {
+				System.err.println("Eight job failed");
+				System.exit(8);
+			}
+			
 			Job normalizingJob = new Job(conf, "normalize");
 			normalizingJob.setJarByClass(LearningAlgorithm.class);
-			normalizingJob.setMapperClass(ContextTaggingMapper.class);
+			normalizingJob.setMapperClass(NormalizeTaggingMapper.class);
 			normalizingJob.setMapOutputKeyClass(Text.class);
 			normalizingJob.setMapOutputValueClass(TextTaggedValue.class);
+			normalizingJob.setPartitionerClass(WordJoinPartitioner.class);
+			normalizingJob.setGroupingComparatorClass(WordJoinGroupComparator.class);
+			normalizingJob.setSortComparatorClass(WordJoinSortComparator.class);
 			normalizingJob.setReducerClass(NormalizingReducer.class);
 			normalizingJob.setInputFormatClass(SequenceFileInputFormat.class);
-			normalizingJob.setOutputFormatClass(SequenceFileOutputFormat.class);
-			normalizingJob.setOutputFormatClass(SeqOutInitDist.class);
+			normalizingJob.setOutputFormatClass(SeqOutInitDist.class);			
 			normalizingJob.setOutputKeyClass(Text.class);
 			normalizingJob.setOutputValueClass(DoubleWritable.class);
+			FileInputFormat.addInputPath(normalizingJob, normalizeSumPath);
 			FileInputFormat.addInputPath(normalizingJob, contextSumOutputPath);
 			FileOutputFormat.setOutputPath(normalizingJob, normalizeOutputPath);
 			
 			succeeded = normalizingJob.waitForCompletion(true);
 			
 			if (!succeeded) {
-				System.err.println("Eighth job failed");
-				System.exit(8);
+				System.err.println("Ninth job failed");
+				System.exit(9);
 			}
-			
+						
 			if (!fs.delete(initialDistributionOutputPath, true)) {
 				System.out.println("Error deleting initial distribution.");
 			}			
@@ -266,12 +296,14 @@ public class LearningAlgorithm {
 			if (!fs.delete(contextSumOutputPath, true)) {
 				System.out.println("Error deleting context sum.");		
 			}
-			
+			if (!fs.delete(normalizeSumPath, true)) {
+				System.out.println("Error deleting normalize sum.");
+			}			
 			if (!fs.rename(normalizeOutputPath, initialDistributionOutputPath)) {
 				System.out.println("Error renaming normalize output.");
 			}
 		}
-		
+
 		if (!fs.rename(initialDistributionOutputPath, normalizeOutputPath)) {
 			System.out.println("Error renaming final normalized output.");
 		}
@@ -293,7 +325,7 @@ public class LearningAlgorithm {
 		succeeded = finalOutputJob.waitForCompletion(true);
 		
 		if (!succeeded) {
-			System.err.println("Ninth job failed");
+			System.err.println("Tenth job failed");
 			System.exit(9);
 		}			
 	}
