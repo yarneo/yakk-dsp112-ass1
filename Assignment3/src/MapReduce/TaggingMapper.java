@@ -15,14 +15,15 @@ public class TaggingMapper extends
     		throws IOException, InterruptedException
 	{
 		Path inputPath = ((FileSplit) context.getInputSplit()).getPath();
-		Text tag = new Text(inputPath.getName().split("-")[0]);
+		String tag = inputPath.getName().split("-")[0];		
 		
 		String[] tokens = key.toString().split("-,-");
-		Text joinKey = new Text(tokens[0]);
+		String joinKey = tokens[0];
 		Text text = new Text(tokens[1]);
 		
-		TextTaggedValue v = new TextTaggedValue(tag, new TextDoubleWritable(text, value));
+		TextTaggedValue v = new TextTaggedValue(new Text(tag), new TextDoubleWritable(text, value));
 		
-		context.write(joinKey, v);
+		Text outKey = new Text(tag.toString() + "-,-" + joinKey);
+		context.write(outKey, v);
 	}
 }

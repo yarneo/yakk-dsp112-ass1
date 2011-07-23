@@ -8,7 +8,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
-public class ContextTaggingMapper extends
+public class NormalizingMapper extends
 		Mapper<Text, DoubleWritable, Text, TextTaggedValue> {
 	@Override
     protected void map(Text key, DoubleWritable value, Context context)
@@ -18,13 +18,12 @@ public class ContextTaggingMapper extends
 		String tag = inputPath.getName().split("-")[0];
 		
 		String[] tokens = key.toString().split("-,-");
-		String joinKey = tokens[1];
+		Text joinKey = new Text(tokens[1]);
 		
 		Text text = new Text(tokens[0]);
 		
 		TextTaggedValue v = new TextTaggedValue(new Text(tag), new TextDoubleWritable(text, value));
 		
-		Text outKey = new Text(tag.toString() + "-,-" + joinKey);
-		context.write(outKey, v);
+		context.write(joinKey, v);
 	}
 }

@@ -16,44 +16,33 @@ public class WordJoinReducer extends
 	{
 		// key is word
 		// taggedValues has values with tag "tag" which are p(tag|word) for various tags of word in key.
-		// taggedValues has values with tag "word" which are p(word|context) for various contexts of word in key.
+		// taggedValues has values with tag "context" which are p(word|context) for various contexts of word in key.
 		// for each tag|word
-		// .. emit word, tag|context as tag|word * word|context for each word|context
-		
+		// .. emit word, tag|context as tag|word * word|context for each word|context		
 		List<TextDoubleWritable> tags = new ArrayList<TextDoubleWritable>();
-		List<TextDoubleWritable> contexts = new ArrayList<TextDoubleWritable>();
-		
-		for (TextTaggedValue taggedValue : taggedValues)
-		{
-			// deep copy since Hadoop recycles Writables during the iteration.
-			TextTaggedValue ttv = new TextTaggedValue(
-					new Text(taggedValue.getTag()),
-					new TextDoubleWritable(
-							new Text(taggedValue.getValue().getText()),
-							new DoubleWritable(taggedValue.getValue().getValue().get())));
 			
-			if (taggedValue.getTag().toString().equals("tag")) {
-				tags.add(ttv.getValue());				
-			} else if (taggedValue.getTag().toString().equals("context")) {
-				contexts.add(ttv.getValue());				
-			} else {
-				// TODO: handle this case
-				System.out.println("epic fail 3");
-			}			
-		}		
-		
-		for (TextDoubleWritable tagWord : tags) {
-			for (TextDoubleWritable wordContext : contexts) {
-				double f = tagWord.getValue().get() * wordContext.getValue().get();
+		for (TextTaggedValue taggedValue : taggedValues)
+		{			
+			if (taggedValue.getTag().toString().equals("tag")) {				
+				tags.add(new TextDoubleWritable(
+						new Text(taggedValue.getValue().getText()),
+						new DoubleWritable(taggedValue.getValue().getValue().get())));
+			} else if (taggedValue.getTag().toString().equals("context")) {				
+				TextDoubleWritable wordContext = taggedValue.getValue();
 				
-				if (f != 0) {
-					context.write(
-							new Text(tagWord.getText().toString() + "-,-" + wordContext.getText().toString()),
-							new DoubleWritable(f));	
+				for (TextDoubleWritable tagWord : tags) {				
+					double f = tagWord.getValue().get() * wordContext.getValue().get();
+					
+					if (f != 0) {
+						context.write(
+								new Text(tagWord.getText().toString() + "-,-" + wordContext.getText().toString()),
+								new DoubleWritable(f));	
+					}
 				}
-				
-			}	
-		}
+			} else {
+				// TODO: handle this error.
+				System.out.println("epic fail 3");
+			}
+		}		
 	}
-
 }
