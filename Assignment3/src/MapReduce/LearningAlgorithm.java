@@ -54,6 +54,17 @@ public class LearningAlgorithm {
 		}		
 		
 		boolean succeeded = false;
+		
+		// Step 1: Jobs 1 and 2.
+		
+		/*
+		 * Job 1: Count and format.
+		 * Input: The original n-gram corpus.
+		 * Output: N-gram and count (i.e., identical n-grams from different years are aggregated, etc.)
+		 * 
+		 * Mapper: RowMapper. Strips extra fields, e.g. year.
+		 * Reducer: LongSumReducer. Aggregates the counts of identical n-grams.
+		 */
 
 		Job countAndFormatJob = new Job(conf, "count and format");
 		countAndFormatJob.setJarByClass(LearningAlgorithm.class);
@@ -81,6 +92,17 @@ public class LearningAlgorithm {
 
 		conf.setBoolean("uniform", uniform);
 		conf.setLong("threshold", T);
+		
+		/*
+		 * Job 2: Initial distribution.
+		 * Input: Counted n-grams from job 1.
+		 * Output: p(tag|word) in the form Key: word-,-tag	Value: p(tag|word)
+		 * 
+		 * Mapper: InitDistMapper. Emits word, count for each word in n-gram.
+		 * Reducer: InitDistReducer. Emits word-,-tag, p(tag|word) for each valid tag for
+		 *                           the word according to the tag dictionary. Uniform
+		 *                           or complex distribution is emitted according to configuration parameter.
+		 */
 
 		Job initialDistribution = new Job(conf, "initial distribution");
 		initialDistribution.setJarByClass(LearningAlgorithm.class);
@@ -96,6 +118,21 @@ public class LearningAlgorithm {
 		FileOutputFormat.setOutputPath(initialDistribution, initialDistributionOutputPath);
 		
 		initialDistribution.submit();
+		
+		// Step 2: Jobs 3 and 4.
+		
+		/*
+		 * Job 3: Word information.
+		 * Input: Counted n-grams.
+		 * Output: word-,-context	p(context|word) 
+		 * 
+		 * Mapper: WordInfoMapper. Key: word Value: context, count for each word in each n-gram.
+		 * Reducer: WordInfoReducer. Sums count from each context of a word to get total count of word.
+		 *                           Emits p(context|word) = count(word in context)/count(word) for each
+		 *                           context of a word.
+		 *
+		 * Output files are emitted with "word" prefix for later use in "context join".   
+		 */
 				
 		Job wordInfoJob = new Job(conf, "word info");
 		wordInfoJob.setJarByClass(LearningAlgorithm.class);
@@ -110,7 +147,19 @@ public class LearningAlgorithm {
 		FileInputFormat.addInputPath(wordInfoJob, countedNgramsOutputPath);
 		FileOutputFormat.setOutputPath(wordInfoJob, wordInfoOutputPath);
 		
-		wordInfoJob.submit();		
+		wordInfoJob.submit();
+		
+		/*
+		 * Job 4: Context information.
+		 * Input: Counted n-grams.
+		 * Output: word-,-context	p(word|context)
+		 * 
+		 * Mapper: ContextInfoMapper. Emits Key: context Value: word, count for each context in each n-gram.
+		 * Reducer: ContextInfoReducer: Sums count from each word for a context to get total count of context.
+		 *                              Emit p(word|context) = count(word in context)/count(context).
+		 *
+		 * Output files are emitted with "context" prefix for later use in "word join".
+		 */
 
 		Job contextInfoJob = new Job(conf, "context info");
 		contextInfoJob.setJarByClass(LearningAlgorithm.class);
@@ -147,6 +196,22 @@ public class LearningAlgorithm {
 		}
 		
 		for (int i = 0; i < 10; i++) {
+			// Step 3: Jobs 5 and 6.
+			
+			/*
+			 * Job 5: Word join.
+			 * Inputs: p(tag|word) distribution and context info (p(word|context))
+			 * Output: word-,-context, p'(context|word) 
+			 * 
+			 * Mapper: TaggingMapper. Tags records from distribution and context info with data source tag.
+			 * 
+			 * WordJoinPartitioner and WordJoinSortComparator are used to ensure tags for a word are seen
+			 * by the reducer before p(word|context)'s of a word.
+			 * 
+			 * Reducer: WordJoinReducer. Emits tag-,-context, p'(tag|context) for each tag for each context
+			 *                           of word. (Multiple identical records are emitted.) Sum of all p'
+			 *                           for a tag, context pair is p(tag|context).
+			 */
 			Job wordJoinJob = new Job(conf, "word join");
 			wordJoinJob.setJarByClass(LearningAlgorithm.class);
 			wordJoinJob.setMapperClass(TaggingMapper.class);
@@ -170,6 +235,15 @@ public class LearningAlgorithm {
 				System.err.println("Fifth job failed");
 				System.exit(5);
 			}
+			
+			/*
+			 * Job 6: Word sum.
+			 * Input: Word info (multiple tag-,-context, p'(tag|context) values.)
+			 * Output: tag-,-context, p(tag|context)
+			 * 
+			 * Mapper: TagContextWordMapper. Identity mapper.
+			 * Reducer: TagContextWordReducer. Aggregates identical keys.
+			 */
 						
 			Job wordSumJob = new Job(conf, "word sum");
 			wordSumJob.setJarByClass(LearningAlgorithm.class);
@@ -191,6 +265,20 @@ public class LearningAlgorithm {
 				System.err.println("Sixth job failed");
 				System.exit(6);
 			}
+			
+			// Step 4: Jobs 7,8,9,10
+			
+			/*
+			 * Job 7: Context join.
+			 * Inputs: Word sum (tag-,-context, p(tag|context)) and word info (word-,-context	p(context|word))
+			 * Output: word-,-tag	p*'(tag|word)
+			 * 
+			 * Mapper: ContextTaggingMapper. Tags record with data source.
+			 * 
+			 * Partitioner and sort comparator ensure word sum appears before word info.
+			 * 
+			 * Reducer: ContextJoinReducer. Emit tag-,-word, p*'(tag|word) for each tag for each context.
+			 */
 			
 			Job contextJoinJob = new Job(conf, "context join");
 			contextJoinJob.setJarByClass(LearningAlgorithm.class);
@@ -216,6 +304,15 @@ public class LearningAlgorithm {
 				System.exit(7);
 			}
 			
+			/*
+			 * Job 8: Context sum.
+			 * Input: Context join (word-,-tag	p*'(tag|word))
+			 * Output: word		tag, p*(tag|word)
+			 * 
+			 * Mapper: TagContextWordMapper. Identity mapper.
+			 * Reducer: ContextSumReducer. Group p*'(tag|word) values by word.
+			 */
+			
 			Job contextSumJob = new Job(conf, "context sum");
 			contextSumJob.setJarByClass(LearningAlgorithm.class);
 			contextSumJob.setMapperClass(TagContextWordMapper.class);
@@ -233,9 +330,19 @@ public class LearningAlgorithm {
 			succeeded = contextSumJob.waitForCompletion(true);
 			
 			if (!succeeded) {
-				System.err.println("Seventh job failed");
-				System.exit(7);
+				System.err.println("Eighth job failed");
+				System.exit(8);
 			}
+			
+			/*
+			 * Job 9: Normalize sum.
+			 * Input: Context sum (word		tag, p*(tag|word))
+			 * Output:  word		sum, sigma over tag of p*(tag|word) (Z)
+			 * 
+			 * Mapper: NormalizingSumMapper. Identity mapper.
+			 * Reducer: NormalizingSumReducer. Aggregate all p*(tag|word) for a word and emit
+			 *                                 word		sum, sigma over tag of p*(tag|word)
+			 */
 			
 			Job normalizingSumJob = new Job(conf, "normalize sum");
 			normalizingSumJob.setJarByClass(LearningAlgorithm.class);
@@ -253,9 +360,22 @@ public class LearningAlgorithm {
 			
 			succeeded = normalizingSumJob.waitForCompletion(true);
 			if (!succeeded) {
-				System.err.println("Eight job failed");
-				System.exit(8);
+				System.err.println("Nineth job failed");
+				System.exit(9);
 			}
+			
+			/*
+			 * Job 10: Normalize.
+			 * Inputs: Normalize sum ( word		sum, sigma over tag of p*(tag|word))
+			 *         Context sum (word		tag, p*(tag|word))
+			 * Output: word-,-tag	p(tag|word)
+			 * 
+			 * Mapper: NormalizeTaggingMapper. Tag with data source.
+			 * 
+			 * Normalize sum records are seen before context sum records.
+			 * 
+			 * Reducer: NormalizingReducer. Emit word-,-tag, p(tag|word) = p*(tag|word)/Z.
+			 */
 			
 			Job normalizingJob = new Job(conf, "normalize");
 			normalizingJob.setJarByClass(LearningAlgorithm.class);
@@ -277,8 +397,8 @@ public class LearningAlgorithm {
 			succeeded = normalizingJob.waitForCompletion(true);
 			
 			if (!succeeded) {
-				System.err.println("Ninth job failed");
-				System.exit(9);
+				System.err.println("Tenth job failed");
+				System.exit(10);
 			}
 						
 			if (!fs.delete(initialDistributionOutputPath, true)) {
@@ -308,6 +428,12 @@ public class LearningAlgorithm {
 			System.out.println("Error renaming final normalized output.");
 		}
 		
+		/*
+		 * Job 11: Final output.
+		 * Input: Normalize (word-,-tag	p(tag|word))
+		 * Output: word tag1 p1 tag2 p2 ... (in text format)
+		 */
+		
 		Job finalOutputJob = new Job(conf, "final output");
 		finalOutputJob.setJarByClass(LearningAlgorithm.class);
 		finalOutputJob.setInputFormatClass(SequenceFileInputFormat.class);
@@ -325,8 +451,8 @@ public class LearningAlgorithm {
 		succeeded = finalOutputJob.waitForCompletion(true);
 		
 		if (!succeeded) {
-			System.err.println("Tenth job failed");
-			System.exit(9);
+			System.err.println("Eleventh job failed");
+			System.exit(11);
 		}			
 	}
 }
