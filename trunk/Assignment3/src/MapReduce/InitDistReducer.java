@@ -23,40 +23,44 @@ import dsp.tagger.TagDictionary;
 
 public class InitDistReducer extends Reducer<Text,LongWritable,Text,DoubleWritable> {
 	private static final Log LOG = LogFactory.getLog("InitDistReducer");
-	
+	/**
+	 * Reducer. Emit word-,-tag, p(tag|word) according to dictionary for each tag for each word that
+	 *          meets the threshold.
+	 *
+	 * @param key The word.
+	 * @param values The counts in each record for the word.
+	 * @param context The Hadoop context.
+	 */
     @Override
     protected void reduce(Text key, Iterable<LongWritable> values, Context context) throws IOException, InterruptedException {
     	TagDictionary tagger = TagDictionarySingleton.getInstance();    	
 
 		long threshold = context.getConfiguration().getLong("threshold", -1);
-		if(threshold == -1) {
+		if(threshold == -1) {			
 			LOG.error("Error retrieving threshold");
 			return;
 		}
     	long frequency = 0;
+    	// Sum all appearances of the word.
     	for (LongWritable val : values) {
     		frequency += val.get();
     	}
+    	// If the word meets the threshold, emit p(tag|word)'s for it.
     	if(frequency >= threshold) {
     		boolean uniform = context.getConfiguration().getBoolean("uniform", false);
     		    		
-    		try {   			
+    		try {
     			for (Analysis<String> analysis : tagger.getTagsDistributionForWord(key.toString(), uniform)) {
     				String wordAndTag = key.toString() + "-,-" + analysis.getTag();
+    				// Emit tag for word with probability from the dictionary's analysis.
     				context.write(
     						new Text(wordAndTag),
     						new DoubleWritable(analysis.getProb()));
     			}
     		} catch (AnalysisException e) {
-    			e.printStackTrace();
+    			e.printStackTrace();    			
     			// TODO: handle this error
-    		}	
-    		
-//    		float out = (float)0.5;
-//    		String wordAndTag = key.toString() + "-,-" + "noun";
-//    		context.write(new Text(wordAndTag), new FloatWritable(out));
-//    		wordAndTag = key.toString() + "-,-" + "verb";
-//    		context.write(new Text(wordAndTag), new FloatWritable(out));
+    		}
     	}    
     }
 }

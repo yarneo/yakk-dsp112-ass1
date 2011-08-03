@@ -17,6 +17,13 @@ public class RowMapper extends Mapper<LongWritable,Text,Text,LongWritable> {
     private static final Pattern ROW_PATTERN = 
     	Pattern.compile("^([^\\t]+)\\t([\\d]+)\\t([\\d]+)\\t([\\d]+)\\t([\\d]+)$");    
 
+    /**
+     * Map. Strips extra fields from each n-gram record and emits record with n-gram and occurrence count.
+     * 
+     * @param key The record number.
+     * @param value Tab-delimited n-gram record from corpus.
+     * @param context Hadoop context.
+     */
     @Override
     protected void map(LongWritable key, Text value, Context context)
                     throws IOException, InterruptedException {

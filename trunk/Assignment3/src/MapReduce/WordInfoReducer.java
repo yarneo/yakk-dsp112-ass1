@@ -11,6 +11,13 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.LongWritable;
 
 public class WordInfoReducer extends Reducer<Text,Pair,Text,DoubleWritable> {
+	/**
+	 * Reducer. For each word and context input record, emit p(context|word) output record.
+	 * 
+	 * @param key The word.
+	 * @param values Contexts and counts for the word.
+	 * @param context The Hadoop context.
+	 */
     @Override
     protected void reduce(Text key, Iterable<Pair> values, Context context) 
     		throws IOException, InterruptedException {
@@ -21,7 +28,7 @@ public class WordInfoReducer extends Reducer<Text,Pair,Text,DoubleWritable> {
         	valueList.add(new Pair(new Text(val.getText().toString()),new LongWritable(val.getNum().get())));
         }
         for(Pair val : valueList) {
-        	//Key: context-,-word   Value: count(word in context) / count(word) = p(context|word)
+        	// Key: word-,-context   Value: count(word in context) / count(word) = p(context|word)
         	String outStr = key.toString() + "-,-" + val.getText().toString();
         	double outFloat = ((double)val.getNum().get() / count_of_word);
 

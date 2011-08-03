@@ -17,7 +17,12 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ReflectionUtils;
 
-
+/**
+ * A SequenceFileOutputFormat that names output files with a "context" prefix.
+ * 
+ * @param <K> The key type.
+ * @param <V> The value type.
+ */
 public class SeqOutFormatContext<K,V> extends SequenceFileOutputFormat<K,V> {
 	public RecordWriter<K, V> 
 	getRecordWriter(TaskAttemptContext context

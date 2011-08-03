@@ -8,7 +8,14 @@ import org.apache.hadoop.mapreduce.Mapper;
 
 public class TagContextWordMapper extends
 		Mapper<Text, DoubleWritable, Text, DoubleWritable> {
-	@Override
+	/**
+	 * Map. Identity mapper.
+	 * 
+	 * @param key A text key.
+	 * @param value A double value.
+	 * @param context The Hadoop context.
+	 */
+	@Override	
     protected void map(Text key, DoubleWritable value, Context context)
     		throws IOException, InterruptedException
 	{

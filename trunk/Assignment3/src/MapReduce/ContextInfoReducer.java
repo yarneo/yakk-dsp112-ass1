@@ -10,6 +10,13 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.LongWritable;
 
 public class ContextInfoReducer extends Reducer<Text,Pair,Text,DoubleWritable> {
+	/**
+	 * Reducer. For each word and context input record, emit p(word|context) output record.
+	 * 
+	 * @param key The context.
+	 * @param values Words and counts for the context.
+	 * @param context The Hadoop context.
+	 */
     @Override
     protected void reduce(Text key, Iterable<Pair> values, Context context) 
     		throws IOException, InterruptedException {

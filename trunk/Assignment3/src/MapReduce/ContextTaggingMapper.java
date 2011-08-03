@@ -10,6 +10,16 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
 public class ContextTaggingMapper extends
 		Mapper<Text, DoubleWritable, Text, TextTaggedValue> {
+	/**
+	 * Map. Tag records by input data source and groups by second part of key.
+	 * 
+	 * Let key be k1-,-k2. Then for key, value, the record tag-,-k2, [tag, [k1, value]] is emitted,
+	 * where tag is the prefix of the input file for the input record.
+	 * 
+	 * @param key A key of the form k1-,-k2.
+	 * @param value A value.
+	 * @param context The Hadoop context.
+	 */
 	@Override
     protected void map(Text key, DoubleWritable value, Context context)
     		throws IOException, InterruptedException

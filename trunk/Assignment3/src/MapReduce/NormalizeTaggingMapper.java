@@ -9,6 +9,13 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
 public class NormalizeTaggingMapper extends
 		Mapper<Text, TextDoubleWritable, Text, TextTaggedValue> {
+	/**
+	 * Map. Input key, value records are emitted as tag-,-key, [tag, value].
+	 * 
+	 * @param key The record key.
+	 * @param value The record value.
+	 * @param context The Hadoop context.
+	 */
 	@Override
     protected void map(Text key, TextDoubleWritable value, Context context)
     		throws IOException, InterruptedException

@@ -7,6 +7,13 @@ import org.apache.hadoop.mapreduce.Reducer;
 
 public class NormalizingReducer extends
 		Reducer<Text, TextTaggedValue, Text, DoubleWritable> {
+	/**
+	 * Reducer. Use sum records which are seen first to normalize probabilities for the value records.
+	 * 
+	 * @param key The record key.
+	 * @param taggedValues Tagged values which are either the sums or the values from the context join.
+	 * @param context The Hadoop context.
+	 */
 	@Override
 	public void reduce(Text key, Iterable<TextTaggedValue> taggedValues, Context context) 
 			throws IOException, InterruptedException 
