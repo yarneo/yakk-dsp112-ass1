@@ -9,7 +9,14 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 
 public class ContextJoinReducer extends
-		Reducer<Text, TextTaggedValue, Text, DoubleWritable> {	
+		Reducer<Text, TextTaggedValue, Text, DoubleWritable> {
+	/**
+	 * Reduce. Emit tag-,-word, p*'(tag|word) for each matching tag|context and context|word records.
+	 * 
+	 * @param key The word (with unused tag prefix).
+	 * @param taggedValues Tagged values which are either p(tag|context) ("tag") or p(context|word) ("word").
+	 * @param context The Hadoop context.
+	 */
 	@Override
 	public void reduce(Text key, Iterable<TextTaggedValue> taggedValues, Context context) 
 			throws IOException, InterruptedException 

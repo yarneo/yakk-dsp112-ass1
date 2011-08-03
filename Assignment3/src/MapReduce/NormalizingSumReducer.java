@@ -8,6 +8,13 @@ import org.apache.hadoop.mapreduce.Reducer;
 
 public class NormalizingSumReducer extends
 		Reducer<Text, TextDoubleWritable, Text, TextDoubleWritable> {
+	/**
+	 * Reduce. Sum all p*'(tag|word) for every tag for a word, and emit word, [sum, sigma over tag of p*'(tag|word)]
+	 * 
+	 * @param key The word.
+	 * @param values [tag, p*'(tag|word)] values for tags for the word.
+	 * @param context The Hadoop context.
+	 */
 	@Override
 	public void reduce(Text key, Iterable<TextDoubleWritable> values, Context context) 
 			throws IOException, InterruptedException
